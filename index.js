@@ -39,22 +39,19 @@ builder.defineCatalogHandler(async ({ type }) => {
 
   try {
 
-    const response = await axios.get(
-      `${API}/danh-sach/phim-moi-cap-nhat?page=1`
-    );
+    const endpoint =
+    type === "series"
+        ? `${API}/v1/api/danh-sach/phim-bo`
+        : `${API}/v1/api/danh-sach/phim-le`;
 
-    const items = response.data.items || [];
+const response = await axios.get(endpoint);
 
-    const metas = items
-      .filter(movie => {
+const items =
+    response.data?.data?.items ||
+    response.data?.items ||
+    [];
 
-        if (type === "series") {
-          return movie.type === "series";
-        }
-
-        return movie.type !== "series";
-
-      })
+const metas = items
       .map(movie => ({
         id: `kkphim:${movie.slug}`,
         type,
