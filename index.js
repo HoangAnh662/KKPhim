@@ -25,7 +25,7 @@ const manifest = {
     }
   ],
 
-  idPrefixes: ["kkphim:"]
+  idPrefixes: ["kkphim:", "tt"]
 };
 
 const builder = new addonBuilder(manifest);
@@ -38,32 +38,50 @@ const builder = new addonBuilder(manifest);
 builder.defineCatalogHandler(async ({ type }) => {
   try {
     const endpoint =
-  type === "series"
-    ? `${API}/danh-sach/phim-bo`
-    : `${API}/danh-sach/phim-moi-cap-nhat`;
+      type === "series"
+        ? `${API}/danh-sach/phim-bo`
+        : `${API}/danh-sach/phim-moi-cap-nhat`;
 
-const response = await axios.get(endpoint);
+    // Lấy 5 trang cùng lúc
+    const requests = [];
 
-const items = response.data.items || [];
+    for (let page = 1; page <= 5; page++) {
+      requests.push(
+        axios.get(endpoint, {
+          params: { page }
+        })
+      );
+    }
 
-const metas = items
-      .map(movie => ({
-        id: `kkphim:${movie.slug}`,
-        type,
-        name: movie.name,
-        poster:
-          movie.poster_url ||
-          `https://phimimg.com/${movie.poster_url || ""}`,
-        description: movie.origin_name || ""
-      }));
+    const responses = await Promise.all(requests);
+
+    // Gộp phim của tất cả các trang
+    const items = responses.flatMap(
+      response => response.data.items || []
+    );
+
+    // Loại phim trùng slug
+    const uniqueItems = Array.from(
+      new Map(
+        items.map(movie => [movie.slug, movie])
+      ).values()
+    );
+
+    const metas = uniqueItems.map(movie => ({
+      id: `kkphim:${movie.slug}`,
+      type,
+      name: movie.name,
+      poster:
+        movie.poster_url ||
+        `https://phimimg.com/${movie.poster_url || ""}`,
+      description: movie.origin_name || ""
+    }));
 
     return { metas };
 
   } catch (error) {
     console.error("Catalog error:", error.message);
-    return { metas: [] };
-  }
-});
+    return { metas: []
 
 // =========================
 // META
@@ -143,23 +161,55 @@ builder.defineMetaHandler(async ({ type, id }) => {
 // =========================
 
 builder.defineStreamHandler(async ({ id }) => {
-
   try {
+    let response;
+    let episodeIndex = 0;
 
-    const parts = id.split(":");
+    // =====================================
+    // PHIM MỞ TỪ CATALOG KKPHIM
+    // =====================================
+    if (id.startsWith("kkphim:")) {
+      const parts = id.split(":");
+      const slug = parts[1];
 
-    const slug = parts[1];
+      episodeIndex =
+        parts.length >= 3
+          ? Number(parts[2])
+          : 0;
 
-    const episodeIndex =
-      parts.length >= 3
-        ? Number(parts[2])
-        : 0;
+      response = await axios.get(
+        `${API}/phim/${slug}`
+      );
+    }
 
-    const response = await axios.get(
-      `${API}/phim/${slug}`
-    );
+    // =====================================
+    // PHIM TỪ TÌM KIẾM STREMIO / IMDB
+    // =====================================
+    else if (id.startsWith("tt")) {
+      const parts = id.split(":");
+      const imdbId = parts[0];
 
-    const servers = response.data.episodes || [];
+      // Nếu là series, Stremio thường gửi:
+      // tt1234567:season:episode
+      if (parts.length >= 3) {
+        const episodeNumber = Number(parts[2]);
+
+        if (!isNaN(episodeNumber) && episodeNumber > 0) {
+          episodeIndex = episodeNumber - 1;
+        }
+      }
+
+      response = await axios.get(
+        `${API}/imdb/title/${imdbId}`
+      );
+    }
+
+    else {
+      return { streams: [] };
+    }
+
+    const servers =
+      response.data.episodes || [];
 
     if (!servers.length) {
       return { streams: [] };
@@ -175,25 +225,24 @@ builder.defineStreamHandler(async ({ id }) => {
     const streams = [];
 
     if (episode.link_m3u8) {
-
       streams.push({
         name: "KKPhim",
         title: "KKPhim • HLS",
         url: episode.link_m3u8
       });
-
     }
 
     return { streams };
 
   } catch (error) {
-
-    console.error("Stream error:", error.message);
+    console.error(
+      "Stream error:",
+      error.response?.status || "",
+      error.message
+    );
 
     return { streams: [] };
-
   }
-
 });
 
 
