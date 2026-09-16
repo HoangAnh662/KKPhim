@@ -36,22 +36,21 @@ const builder = new addonBuilder(manifest);
 // =========================
 
 builder.defineCatalogHandler(async ({ type }) => {
-
   try {
+    const response = await axios.get(
+      `${API}/danh-sach/phim-moi-cap-nhat`
+    );
 
-    const endpoint =
-    type === "series"
-        ? `${API}/v1/api/danh-sach/phim-bo`
-        : `${API}/v1/api/danh-sach/phim-le`;
+    const items = response.data.items || [];
 
-const response = await axios.get(endpoint);
+    const metas = items
+      .filter(movie => {
+        if (type === "series") {
+          return movie.type === "series";
+        }
 
-const items =
-    response.data?.data?.items ||
-    response.data?.items ||
-    [];
-
-const metas = items
+        return movie.type !== "series";
+      })
       .map(movie => ({
         id: `kkphim:${movie.slug}`,
         type,
@@ -65,15 +64,10 @@ const metas = items
     return { metas };
 
   } catch (error) {
-
     console.error("Catalog error:", error.message);
-
     return { metas: [] };
-
   }
-
 });
-
 
 // =========================
 // META
