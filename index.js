@@ -37,20 +37,16 @@ const builder = new addonBuilder(manifest);
 
 builder.defineCatalogHandler(async ({ type }) => {
   try {
-    const response = await axios.get(
-      `${API}/danh-sach/phim-moi-cap-nhat`
-    );
+    const endpoint =
+  type === "series"
+    ? `${API}/danh-sach/phim-bo`
+    : `${API}/danh-sach/phim-moi-cap-nhat`;
 
-    const items = response.data.items || [];
+const response = await axios.get(endpoint);
 
-    const metas = items
-      .filter(movie => {
-        if (type === "series") {
-          return movie.type === "series";
-        }
+const items = response.data.items || [];
 
-        return movie.type !== "series";
-      })
+const metas = items
       .map(movie => ({
         id: `kkphim:${movie.slug}`,
         type,
