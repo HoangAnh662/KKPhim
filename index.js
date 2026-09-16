@@ -81,7 +81,9 @@ builder.defineCatalogHandler(async ({ type }) => {
 
   } catch (error) {
     console.error("Catalog error:", error.message);
-    return { metas: []
+    return { metas: [] };
+  }
+});
 
 // =========================
 // META
