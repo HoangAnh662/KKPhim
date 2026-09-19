@@ -13,17 +13,23 @@ const manifest = {
   types: ["movie", "series"],
 
   catalogs: [
-    {
-      type: "movie",
-      id: "kkphim-movie",
-      name: "KKPhim - Phim mới"
-    },
-    {
-      type: "series",
-      id: "kkphim-series",
-      name: "KKPhim - Phim bộ"
-    }
-  ],
+  {
+    type: "movie",
+    id: "kkphim-movie",
+    name: "KKPhim - Phim mới",
+    extra: [
+      { name: "search", isRequired: false }
+    ]
+  },
+  {
+    type: "series",
+    id: "kkphim-series",
+    name: "KKPhim - Phim bộ",
+    extra: [
+      { name: "search", isRequired: false }
+    ]
+  }
+],
 
   idPrefixes: ["kkphim:", "tt"]
 };
@@ -35,14 +41,47 @@ const builder = new addonBuilder(manifest);
 // CATALOG
 // =========================
 
-builder.defineCatalogHandler(async ({ type }) => {
+builder.defineCatalogHandler(async ({ type, extra }) => {
   try {
+    const search = extra?.search?.trim();
+
+    // =========================
+    // SEARCH
+    // =========================
+    if (search) {
+      const response = await axios.get(`${API}/v1/api/tim-kiem`, {
+        params: {
+          keyword: search,
+          page: 1
+        }
+      });
+
+      const items =
+        response.data?.data?.items ||
+        response.data?.items ||
+        [];
+
+      const metas = items.map(movie => ({
+        id: `kkphim:${movie.slug}`,
+        type,
+        name: movie.name,
+        poster:
+          movie.poster_url ||
+          `https://phimimg.com/${movie.poster_url || ""}`,
+        description: movie.origin_name || ""
+      }));
+
+      return { metas };
+    }
+
+    // =========================
+    // CATALOG BÌNH THƯỜNG
+    // =========================
     const endpoint =
       type === "series"
         ? `${API}/danh-sach/phim-bo`
         : `${API}/danh-sach/phim-moi-cap-nhat`;
 
-    // Lấy 5 trang cùng lúc
     const requests = [];
 
     for (let page = 1; page <= 5; page++) {
@@ -55,7 +94,6 @@ builder.defineCatalogHandler(async ({ type }) => {
 
     const responses = await Promise.all(requests);
 
-    // Gộp phim của tất cả các trang
     const items = responses.flatMap(
       response => response.data.items || []
     );
