@@ -51,10 +51,9 @@ builder.defineCatalogHandler(async ({ type, extra }) => {
     if (search) {
       const response = await axios.get(`${API}/v1/api/tim-kiem`, {
   params: {
-    keyword: search,
-    page: 1,
-    type: type === "series" ? "series" : "single"
-  }
+  keyword: search,
+  page: 1
+}
 });
 
       const items =
