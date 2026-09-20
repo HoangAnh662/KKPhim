@@ -50,11 +50,11 @@ builder.defineCatalogHandler(async ({ type, extra }) => {
     // =========================
     if (search) {
       const response = await axios.get(`${API}/v1/api/tim-kiem`, {
-  params: {
-  keyword: search,
-  page: 1
-}
-});
+        params: {
+          keyword: search,
+          page: 1
+        }
+      });
 
       const items =
         response.data?.data?.items ||
@@ -78,27 +78,27 @@ builder.defineCatalogHandler(async ({ type, extra }) => {
     // CATALOG BÌNH THƯỜNG
     // =========================
     const endpoint =
-  type === "series"
-    ? `${API}/v1/api/danh-sach/phim-bo`
-    : `${API}/v1/api/danh-sach/phim-le`;
+      type === "series"
+        ? `${API}/danh-sach/phim-bo`
+        : `${API}/danh-sach/phim-moi-cap-nhat`;
 
-const requests = [];
+    const requests = [];
 
-for (let page = 1; page <= 5; page++) {
-  requests.push(
-    axios.get(endpoint, {
-      params: { page }
-    })
-  );
-}
+    for (let page = 1; page <= 5; page++) {
+      requests.push(
+        axios.get(endpoint, {
+          params: { page }
+        })
+      );
+    }
 
-const responses = await Promise.all(requests);
+    const responses = await Promise.all(requests);
 
-const items = responses.flatMap(response =>
-  response.data?.data?.items ||
-  response.data?.items ||
-  []
-);
+    const items = responses.flatMap(
+      response => response.data.items || []
+    );
+
+    // Loại phim trùng slug
     const uniqueItems = Array.from(
       new Map(
         items.map(movie => [movie.slug, movie])
