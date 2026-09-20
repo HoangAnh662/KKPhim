@@ -16,7 +16,7 @@ const manifest = {
   {
     type: "movie",
     id: "kkphim-movie",
-    name: "KKPhim - Phim mới",
+    name: "KKPhim - Phim lẻ",
     extra: [
       { name: "search", isRequired: false }
     ]
