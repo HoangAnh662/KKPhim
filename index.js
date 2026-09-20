@@ -78,9 +78,9 @@ builder.defineCatalogHandler(async ({ type, extra }) => {
     // CATALOG BÌNH THƯỜNG
     // =========================
     const endpoint =
-      type === "series"
-        ? `${API}/danh-sach/phim-bo`
-        : `${API}/danh-sach/phim-moi-cap-nhat`;
+  type === "series"
+    ? `${API}/danh-sach/phim-bo`
+    : `${API}/danh-sach/phim-le`;
 
     const requests = [];
 
