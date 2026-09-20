@@ -78,27 +78,27 @@ builder.defineCatalogHandler(async ({ type, extra }) => {
     // CATALOG BÌNH THƯỜNG
     // =========================
     const endpoint =
-      type === "series"
-        ? `${API}/danh-sach/phim-bo`
-        : `${API}/danh-sach/phim-moi-cap-nhat`;
+  type === "series"
+    ? `${API}/v1/api/danh-sach/phim-bo`
+    : `${API}/v1/api/danh-sach/phim-le`;
 
-    const requests = [];
+const requests = [];
 
-    for (let page = 1; page <= 5; page++) {
-      requests.push(
-        axios.get(endpoint, {
-          params: { page }
-        })
-      );
-    }
+for (let page = 1; page <= 5; page++) {
+  requests.push(
+    axios.get(endpoint, {
+      params: { page }
+    })
+  );
+}
 
-    const responses = await Promise.all(requests);
+const responses = await Promise.all(requests);
 
-    const items = responses.flatMap(
-      response => response.data.items || []
-    );
-
-    // Loại phim trùng slug
+const items = responses.flatMap(response =>
+  response.data?.data?.items ||
+  response.data?.items ||
+  []
+);
     const uniqueItems = Array.from(
       new Map(
         items.map(movie => [movie.slug, movie])
