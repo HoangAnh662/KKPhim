@@ -7,7 +7,7 @@ const manifest = {
   id: "org.kkphim.stremio",
   version: "1.0.0",
   name: "KKPhim",
-  description: "Xem phim từ KKPhim trên Stremio",
+  description: "Kho phim KKPhim – Phim Lẻ, Phim Bộ, Thuyết Minh và Vietsub.",
 
   resources: ["catalog", "meta", "stream"],
   types: ["movie", "series"],
