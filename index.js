@@ -18,16 +18,18 @@ const manifest = {
     id: "kkphim-movie",
     name: "KKPhim - Phim lẻ",
     extra: [
-      { name: "search", isRequired: false }
-    ]
+  { name: "search", isRequired: false },
+  { name: "skip", isRequired: false }
+]
   },
   {
     type: "series",
     id: "kkphim-series",
     name: "KKPhim - Phim bộ",
     extra: [
-      { name: "search", isRequired: false }
-    ]
+  { name: "search", isRequired: false },
+  { name: "skip", isRequired: false }
+]
   }
 ],
 
@@ -78,7 +80,6 @@ builder.defineCatalogHandler(async ({ type, extra }) => {
     // CATALOG BÌNH THƯỜNG
     // =========================
     const endpoint =
-  tyconst endpoint =
   type === "series"
     ? `${API}/danh-sach/phim-bo`
     : `${API}/danh-sach/phim-le`;
