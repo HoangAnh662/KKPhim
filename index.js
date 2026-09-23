@@ -171,6 +171,7 @@ builder.defineMetaHandler(async ({ type, id }) => {
           episodes.push({
             id: `${id}:${index}`,
             title: ep.name || `Tập ${index + 1}`,
+            thumbnail: meta.background || meta.poster,
             season: 1,
             episode: index + 1
           });
