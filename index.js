@@ -275,26 +275,19 @@ for (const server of servers) {
   const serverName =
   (server.server_name || "Server")
     .replace(/Lồng Tiếng/gi, "Thuyết Minh");
-  let resolution = "";
+  
+const qualityRaw = response.data.movie?.quality || "";
 
-try {
-  const m3u8 = await axios.get(episode.link_m3u8, {
-    timeout: 5000
-  });
+let resolution = "";
 
-  const text = String(m3u8.data);
-
-  if (/3840x2160/i.test(text)) {
-    resolution = "4K";
-  } else if (/1920x1080/i.test(text)) {
-    resolution = "1080p";
-  } else if (/1280x720/i.test(text)) {
-    resolution = "720p";
-  } else if (/854x480|852x480/i.test(text)) {
-    resolution = "480p";
-  }
-} catch (e) {
-  console.log("Không đọc được resolution:", e.message);
+if (/4K|2160/i.test(qualityRaw)) {
+  resolution = "4K";
+} else if (/FHD|1080/i.test(qualityRaw)) {
+  resolution = "1080p";
+} else if (/HD|720/i.test(qualityRaw)) {
+  resolution = "720p";
+} else if (/480/i.test(qualityRaw)) {
+  resolution = "480p";
 }
   if (episode.link_m3u8) {
     streams.push({
