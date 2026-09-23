@@ -255,24 +255,24 @@ builder.defineStreamHandler(async ({ id }) => {
       return { streams: [] };
     }
 
-    const episode =
-      servers[0].server_data[episodeIndex];
-
-    if (!episode) {
-      return { streams: [] };
-    }
-
     const streams = [];
 
-    if (episode.link_m3u8) {
-      streams.push({
-        name: "KKPhim",
-        title: "KKPhim • HLS",
-        url: episode.link_m3u8
-      });
-    }
+for (const server of servers) {
+  const episode = server.server_data?.[episodeIndex];
 
-    return { streams };
+  if (!episode) continue;
+
+  const serverName = server.server_name || "Server";
+
+  if (episode.link_m3u8) {
+    streams.push({
+      name: "KKPhim",
+      title: `KKPhim • ${serverName}`,
+      url: episode.link_m3u8
+    });
+  }
+
+return { streams };
 
   } catch (error) {
     console.error(
