@@ -254,7 +254,10 @@ builder.defineStreamHandler(async ({ id }) => {
     if (!servers.length) {
       return { streams: [] };
     }
-
+const movieName =
+  response.data.movie?.name ||
+  response.data.movie?.origin_name ||
+  "KKPhim";
     const streams = [];
 
 for (const server of servers) {
@@ -262,11 +265,13 @@ for (const server of servers) {
 
   if (!episode) continue;
 
-  const serverName = server.server_name || "Server";
-
+  const serverName =
+  (server.server_name || "Server")
+    .replace(/Lồng Tiếng/gi, "Thuyết Minh");
+  
   if (episode.link_m3u8) {
     streams.push({
-      name: "KKPhim",
+      name: movieName,
       title: `KKPhim • ${serverName}`,
       url: episode.link_m3u8
     });
