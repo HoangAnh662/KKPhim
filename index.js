@@ -258,6 +258,10 @@ const movieName =
   response.data.movie?.name ||
   response.data.movie?.origin_name ||
   "KKPhim";
+    const movieYear = response.data.movie?.year || "";
+
+const displayName =
+  movieYear ? `${movieName} • ${movieYear}` : movieName;
     const streams = [];
 
 for (const server of servers) {
@@ -271,7 +275,7 @@ for (const server of servers) {
   
   if (episode.link_m3u8) {
     streams.push({
-      name: movieName,
+      name: displayName,
       title: `KKPhim • ${serverName}`,
       url: episode.link_m3u8
     });
