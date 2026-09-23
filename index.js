@@ -78,42 +78,41 @@ builder.defineCatalogHandler(async ({ type, extra }) => {
     // CATALOG BÌNH THƯỜNG
     // =========================
     const endpoint =
+  tyconst endpoint =
   type === "series"
     ? `${API}/danh-sach/phim-bo`
     : `${API}/danh-sach/phim-le`;
 
-    const requests = [];
+// KKPhim hiện trả khoảng 24 phim / trang
+const ITEMS_PER_PAGE = 24;
 
-    for (let page = 1; page <= 5; page++) {
-      requests.push(
-        axios.get(endpoint, {
-          params: { page }
-        })
-      );
-    }
+const skip = Number(extra?.skip || 0);
 
-    const responses = await Promise.all(requests);
+// Xác định trang KKPhim cần lấy
+const page = Math.floor(skip / ITEMS_PER_PAGE) + 1;
 
-    const items = responses.flatMap(
-      response => response.data.items || []
-    );
+const response = await axios.get(endpoint, {
+  params: { page }
+});
 
-    // Loại phim trùng slug
-    const uniqueItems = Array.from(
-      new Map(
-        items.map(movie => [movie.slug, movie])
-      ).values()
-    );
+const items = response.data?.items || [];
 
-    const metas = uniqueItems.map(movie => ({
-      id: `kkphim:${movie.slug}`,
-      type,
-      name: movie.name,
-      poster:
-        movie.poster_url ||
-        `https://phimimg.com/${movie.poster_url || ""}`,
-      description: movie.origin_name || ""
-    }));
+// Loại phim trùng slug
+const uniqueItems = Array.from(
+  new Map(
+    items.map(movie => [movie.slug, movie])
+  ).values()
+);
+
+const metas = uniqueItems.map(movie => ({
+  id: `kkphim:${movie.slug}`,
+  type,
+  name: movie.name,
+  poster:
+    movie.poster_url ||
+    `https://phimimg.com/${movie.poster_url || ""}`,
+  description: movie.origin_name || ""
+}));
 
     return { metas };
 
