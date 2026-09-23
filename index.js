@@ -1,7 +1,5 @@
-const { addonBuilder, getRouter } = require("stremio-addon-sdk");
-const express = require("express");
+const { addonBuilder, serveHTTP } = require("stremio-addon-sdk");
 const axios = require("axios");
-
 const API = "https://phimapi.com";
 
 const manifest = {
@@ -317,107 +315,9 @@ return { streams };
 // =========================
 
 const port = process.env.PORT || 7000;
-const app = express();
 
-
-
-app.get("/", (req, res) => {
-  res.send(`
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-  <title>KKPhim Addon</title>
-
-  <style>
-    * {
-      box-sizing: border-box;
-    }
-
-    body {
-      margin: 0;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-      background: #0f0f12;
-      color: #fff;
-      font-family: Arial, sans-serif;
-    }
-
-    .box {
-      width: 100%;
-      max-width: 430px;
-      padding: 35px 25px;
-      text-align: center;
-      background: #1c1c22;
-      border-radius: 22px;
-    }
-
-    h1 {
-      margin: 0 0 12px;
-      font-size: 34px;
-    }
-
-    p {
-      margin: 0 0 30px;
-      color: #bbb;
-      line-height: 1.6;
-    }
-
-    .button {
-      display: block;
-      width: 100%;
-      margin-top: 15px;
-      padding: 17px;
-      border-radius: 14px;
-      color: white;
-      text-decoration: none;
-      font-size: 18px;
-      font-weight: bold;
-    }
-
-    .stremio {
-      background: #7b5cff;
-    }
-
-    .nuvio {
-      background: #20b86a;
-    }
-  </style>
-</head>
-
-<body>
-
-  <div class="box">
-
-    <h1>🎬 KKPhim</h1>
-
-    <p>
-      Kho phim KKPhim – Phim Lẻ, Phim Bộ,
-      Thuyết Minh và Vietsub.
-    </p>
-
-    <a
-      class="button stremio"
-      href="stremio://kkphim-stremio-addon-ymoc.onrender.com/manifest.json">
-      Cài vào Stremio
-    </a>
-
-    
-
-  </div>
-
-</body>
-</html>
-  `);
+serveHTTP(builder.getInterface(), {
+  port
 });
 
-app.use(getRouter(builder.getInterface()));
-
-app.listen(port, () => {
-  console.log(`KKPhim addon running on port ${port}`);
-});
+console.log(`KKPhim addon running on port ${port}`);
