@@ -319,8 +319,7 @@ return { streams };
 const port = process.env.PORT || 7000;
 const app = express();
 
-const manifestUrl =
-  "https://kkphim-stremio-addon-ymoc.onrender.com/manifest.json";
+
 
 app.get("/", (req, res) => {
   res.send(`
@@ -408,11 +407,7 @@ app.get("/", (req, res) => {
       Cài vào Stremio
     </a>
 
-    <a
-      class="button nuvio"
-      href="nuvio://addon?url=${encodeURIComponent(manifestUrl)}">
-      Cài vào Nuvio
-    </a>
+    
 
   </div>
 
