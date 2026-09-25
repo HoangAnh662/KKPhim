@@ -353,10 +353,13 @@ if (/4K|2160/i.test(qualityRaw)) {
 }
   if (episode.link_m3u8) {
     streams.push({
-      name: displayName,
-      title: `KKPhim • ${serverName}${resolution ? ` • ${resolution}` : ""}`,
-      url: episode.link_m3u8
-    });
+  name: displayName,
+  title: `KKPhim • ${serverName}${resolution ? ` • ${resolution}` : ""}`,
+  url: episode.link_m3u8,
+  behaviorHints: {
+    bingeGroup: `kkphim-${serverName}`
+  }
+});
   }
 }
 return { streams };
