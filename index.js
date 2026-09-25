@@ -2,7 +2,20 @@ const { addonBuilder, getRouter } = require("stremio-addon-sdk");
 const express = require("express");
 const axios = require("axios");
 const API = "https://phimapi.com";
-
+const GENRES = {
+  "hanh-dong": "Hành động",
+  "tinh-cam": "Tình cảm",
+  "kinh-di": "Kinh dị",
+  "vien-tuong": "Viễn tưởng",
+  "hai-huoc": "Hài hước",
+  "hinh-su": "Hình sự",
+  "chien-tranh": "Chiến tranh",
+  "phieu-luu": "Phiêu lưu",
+  "hoat-hinh": "Hoạt hình",
+  "gia-dinh": "Gia đình",
+  "tai-lieu": "Tài liệu",
+  "than-thoai": "Thần thoại"
+};
 const manifest = {
   id: "org.kkphim.stremio",
   version: "1.0.0",
@@ -51,10 +64,49 @@ const builder = new addonBuilder(manifest);
 // CATALOG
 // =========================
 
-builder.defineCatalogHandler(async ({ type, extra }) => {
+builder.defineCatalogHandler(async ({
+  type, id, extra }) => {
   try {
     const search = extra?.search?.trim();
+// =====================
+// CATALOG THỂ LOẠI
+// =====================
+if (id?.startsWith("genre-")) {
+  const genre = id.replace("genre-", "");
 
+  if (!GENRES[genre]) {
+    return { metas: [] };
+  }
+
+  const skip = Number(extra?.skip || 0);
+  const ITEMS_PER_PAGE = 24;
+  const page =
+    Math.floor(skip / ITEMS_PER_PAGE) + 1;
+
+  const response = await axios.get(
+    `${API}/v1/api/the-loai/${genre}`,
+    { params: { page } }
+  );
+
+  const items =
+    response.data?.data?.items ||
+    response.data?.items ||
+    [];
+
+  const metas = items.map(movie => ({
+    id: `kkphim:${movie.slug}`,
+    type: movie.type === "series"
+      ? "series"
+      : "movie",
+    name: movie.name,
+    poster:
+      movie.poster_url ||
+      `https://phimimg.com/${movie.poster_url || ""}`,
+    description: movie.origin_name || ""
+  }));
+
+  return { metas };
+}
     // =========================
     // SEARCH
     // =========================
@@ -665,8 +717,22 @@ function toggleAll() {
 }
 
 function installAddon() {
+  const selected = Array.from(
+    document.querySelectorAll("#genres input:checked")
+  ).map(input => input.value);
+
+  if (selected.length === 0) {
+    window.location.href =
+      "stremio://kkphim-stremio-addon-ymoc.onrender.com/manifest.json";
+    return;
+  }
+
+  const genres = selected.join(",");
+
   window.location.href =
-    "stremio://kkphim-stremio-addon-ymoc.onrender.com/manifest.json";
+    "stremio://kkphim-stremio-addon-ymoc.onrender.com/config/" +
+    genres +
+    "/manifest.json";
 }
 </script>
 
@@ -674,7 +740,34 @@ function installAddon() {
 </html>
   `);
 });
+// =====================
+// MANIFEST THEO CẤU HÌNH
+// =====================
 
+app.get("/config/:genres/manifest.json", (req, res) => {
+  const selectedGenres = req.params.genres
+    .split(",")
+    .filter(genre => GENRES[genre]);
+
+  const customManifest = {
+    ...manifest,
+
+    catalogs: [
+      ...manifest.catalogs,
+
+      ...selectedGenres.map(genre => ({
+        type: "movie",
+        id: `genre-${genre}`,
+        name: `KKPhim - ${GENRES[genre]}`,
+        extra: [
+          { name: "skip", isRequired: false }
+        ]
+      }))
+    ]
+  };
+
+  res.json(customManifest);
+});
 // Các route catalog / meta / stream hiện tại
 app.use("/", getRouter(builder.getInterface()));
 
