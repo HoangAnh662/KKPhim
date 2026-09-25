@@ -797,7 +797,30 @@ function copyManifest() {
 
   navigator.clipboard.writeText(url);
 
-  alert("Đã sao chép đường dẫn Manifest!");
+  const msg = document.createElement("div");
+msg.innerHTML = "✅ ĐÃ SAO CHÉP!";
+msg.style.cssText = `
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #22183d;
+  color: white;
+  padding: 18px 28px;
+  border: 2px solid #a83cff;
+  border-radius: 18px;
+  font-size: 18px;
+  font-weight: 700;
+  z-index: 9999;
+  box-shadow: 0 0 25px #8b2cff;
+  white-space: nowrap;
+`;
+
+document.body.appendChild(msg);
+
+setTimeout(() => {
+  msg.remove();
+}, 1800);
 }
 function installAddon() {
   const selected = [];
