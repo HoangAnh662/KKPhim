@@ -567,6 +567,26 @@ h1 {
     font-size: 25px;
   }
 } 
+/* Phim lẻ + Phim bộ luôn nằm cùng 1 hàng */
+.grid:has(.default) {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+/* Các thể loại bên dưới nhỏ gọn hơn */
+#genres .option {
+  padding: 10px 12px;
+  min-height: 58px;
+  font-size: 15px;
+}
+
+#genres .option input {
+  width: 20px;
+  height: 20px;
+}
+
+#genres .option span {
+  white-space: nowrap;
+}
 .install-btn {
   width: 100%;
   padding: 18px;
@@ -608,7 +628,7 @@ h1 {
 
     <div class="grid">
 
-      < <label class="option default">
+       <label class="option default">
   <input type="checkbox" id="movie" value="movie" checked>
   <span>🎞️ Phim lẻ</span>
 </label>
