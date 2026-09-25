@@ -327,74 +327,351 @@ const port = process.env.PORT || 7000;
 
 const app = express();
 
-// Trang cấu hình KKPhim
+// =====================
+// TRANG CẤU HÌNH KKPHIM
+// =====================
+
 app.get("/configure", (req, res) => {
   res.send(`
-    <!DOCTYPE html>
-    <html lang="vi">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1">
-      <title>Cấu hình KKPhim</title>
-      <style>
-        body {
-          font-family: Arial, sans-serif;
-          background: #111;
-          color: white;
-          max-width: 500px;
-          margin: auto;
-          padding: 30px 20px;
-        }
-        h1 { margin-bottom: 30px; }
-        .option {
-          background: #222;
-          padding: 18px;
-          margin: 12px 0;
-          border-radius: 12px;
-          font-size: 18px;
-        }
-        input {
-          transform: scale(1.4);
-          margin-right: 12px;
-        }
-        button {
-          width: 100%;
-          padding: 16px;
-          margin-top: 25px;
-          border: 0;
-          border-radius: 12px;
-          font-size: 17px;
-          font-weight: bold;
-          cursor: pointer;
-        }
-      </style>
-    </head>
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <body>
-      <h1>⚙️ Cấu hình KKPhim</h1>
+<title>Cấu hình KKPhim</title>
 
-      <div class="option">
-        <input type="checkbox" id="movie" checked>
-        <label for="movie">Phim lẻ</label>
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: Arial, sans-serif;
+  color: #fff;
+
+  background:
+    linear-gradient(
+      rgba(7, 5, 20, 0.78),
+      rgba(7, 5, 20, 0.94)
+    ),
+    url("https://raw.githubusercontent.com/HoangAnh662/KKPhim/main/background.jpg");
+
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+}
+
+.page {
+  min-height: 100vh;
+  padding: 35px 16px;
+  display: flex;
+  justify-content: center;
+}
+
+.container {
+  width: 100%;
+  max-width: 850px;
+}
+
+.logo {
+  text-align: center;
+  margin-bottom: 18px;
+}
+
+.logo img {
+  width: 105px;
+  height: 105px;
+  border-radius: 22px;
+}
+
+.panel {
+  background: rgba(15, 10, 35, 0.88);
+  border: 1px solid #873cff;
+  border-radius: 25px;
+  padding: 25px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 0 40px rgba(122, 50, 255, .22);
+}
+
+h1 {
+  text-align: center;
+  margin: 0 0 8px;
+  font-size: 30px;
+}
+
+.subtitle {
+  text-align: center;
+  color: #c8c2dc;
+  margin-bottom: 28px;
+  line-height: 1.5;
+}
+
+.section-title {
+  color: #c75cff;
+  font-size: 20px;
+  font-weight: bold;
+  margin: 20px 0 12px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.option {
+  background: rgba(35, 28, 62, .85);
+  border: 1px solid rgba(157, 80, 255, .4);
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.option:hover {
+  border-color: #b44cff;
+}
+
+.option input {
+  width: 21px;
+  height: 21px;
+  accent-color: #a73cff;
+}
+
+.option span {
+  font-size: 16px;
+}
+
+.default {
+  border-color: #963cff;
+}
+
+.divider {
+  height: 1px;
+  background: rgba(255,255,255,.13);
+  margin: 25px 0;
+}
+
+.genre-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.select-all {
+  border: 1px solid #8242e8;
+  border-radius: 10px;
+  background: rgba(80,40,130,.35);
+  color: white;
+  padding: 9px 13px;
+  cursor: pointer;
+}
+
+.install {
+  width: 100%;
+  margin-top: 28px;
+  padding: 17px;
+  border: 0;
+  border-radius: 14px;
+
+  background: linear-gradient(
+    90deg,
+    #bd2cff,
+    #5c3cff
+  );
+
+  color: white;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 8px 25px rgba(129,55,255,.35);
+}
+
+.note {
+  text-align: center;
+  color: #aaa2bf;
+  margin-top: 14px;
+  font-size: 13px;
+}
+
+@media (max-width: 600px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .panel {
+    padding: 18px;
+  }
+
+  h1 {
+    font-size: 25px;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="page">
+<div class="container">
+
+  <div class="logo">
+    <img
+      src="https://raw.githubusercontent.com/HoangAnh662/KKPhim/main/logo.png"
+      alt="KKPhim"
+    >
+  </div>
+
+  <div class="panel">
+
+    <h1>⚙️ Cấu hình KKPhim</h1>
+
+    <div class="subtitle">
+      Chọn các danh mục bạn muốn hiển thị trong Stremio.<br>
+      Mặc định chỉ có Phim lẻ và Phim bộ.
+    </div>
+
+    <div class="section-title">
+      Danh mục cơ bản
+    </div>
+
+    <div class="grid">
+
+      <label class="option default">
+        <input type="checkbox" checked disabled>
+        <span>🎞️ Phim lẻ</span>
+      </label>
+
+      <label class="option default">
+        <input type="checkbox" checked disabled>
+        <span>🎬 Phim bộ</span>
+      </label>
+
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="genre-head">
+
+      <div class="section-title">
+        Thể loại tùy chọn
       </div>
 
-      <div class="option">
-        <input type="checkbox" id="series" checked>
-        <label for="series">Phim bộ</label>
-      </div>
-
-      <button onclick="installAddon()">
-        CÀI VÀO STREMIO
+      <button
+        class="select-all"
+        type="button"
+        onclick="toggleAll()">
+        ✓ Chọn tất cả
       </button>
 
-      <script>
-        function installAddon() {
-          window.location.href =
-            "stremio://kkphim-stremio-addon-ymoc.onrender.com/manifest.json";
-        }
-      </script>
-    </body>
-    </html>
+    </div>
+
+    <div class="grid" id="genres">
+
+      <label class="option">
+        <input type="checkbox" value="hanh-dong">
+        <span>🔥 Hành động</span>
+      </label>
+
+      <label class="option">
+        <input type="checkbox" value="tinh-cam">
+        <span>❤️ Tình cảm</span>
+      </label>
+
+      <label class="option">
+        <input type="checkbox" value="kinh-di">
+        <span>👻 Kinh dị</span>
+      </label>
+
+      <label class="option">
+        <input type="checkbox" value="vien-tuong">
+        <span>🪐 Viễn tưởng</span>
+      </label>
+
+      <label class="option">
+        <input type="checkbox" value="hai-huoc">
+        <span>😄 Hài hước</span>
+      </label>
+
+      <label class="option">
+        <input type="checkbox" value="hinh-su">
+        <span>🛡️ Hình sự</span>
+      </label>
+
+      <label class="option">
+        <input type="checkbox" value="chien-tranh">
+        <span>🪖 Chiến tranh</span>
+      </label>
+
+      <label class="option">
+        <input type="checkbox" value="phieu-luu">
+        <span>🧭 Phiêu lưu</span>
+      </label>
+
+      <label class="option">
+        <input type="checkbox" value="hoat-hinh">
+        <span>🐻 Hoạt hình</span>
+      </label>
+
+      <label class="option">
+        <input type="checkbox" value="gia-dinh">
+        <span>🏠 Gia đình</span>
+      </label>
+
+      <label class="option">
+        <input type="checkbox" value="tai-lieu">
+        <span>📄 Tài liệu</span>
+      </label>
+
+      <label class="option">
+        <input type="checkbox" value="than-thoai">
+        <span>🔱 Thần thoại</span>
+      </label>
+
+    </div>
+
+    <button
+      class="install"
+      type="button"
+      onclick="installAddon()">
+      🧩 CÀI VÀO STREMIO →
+    </button>
+
+    <div class="note">
+      Sau khi chọn xong, nhấn nút để cài addon vào Stremio.
+    </div>
+
+  </div>
+</div>
+</div>
+
+<script>
+let allSelected = false;
+
+function toggleAll() {
+  allSelected = !allSelected;
+
+  document
+    .querySelectorAll("#genres input")
+    .forEach(input => {
+      input.checked = allSelected;
+    });
+}
+
+function installAddon() {
+  window.location.href =
+    "stremio://kkphim-stremio-addon-ymoc.onrender.com/manifest.json";
+}
+</script>
+
+</body>
+</html>
   `);
 });
 
