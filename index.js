@@ -748,7 +748,9 @@ function installAddon() {
 // =====================
 // MANIFEST THEO CẤU HÌNH
 // =====================
-
+app.get("/config/:genres/configure", (req, res) => {
+  res.redirect("/configure");
+});
 app.get("/config/:genres/manifest.json", (req, res) => {
   const selected = req.params.genres.split(",");
 
