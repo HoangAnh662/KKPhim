@@ -99,9 +99,11 @@ if (id?.startsWith("genre-")) {
       ? "series"
       : "movie",
     name: movie.name,
-    poster:
-      movie.poster_url ||
-      `https://phimimg.com/${movie.poster_url || ""}`,
+    poster: movie.poster_url
+  ? (movie.poster_url.startsWith("http")
+      ? movie.poster_url
+      : `https://phimimg.com/${movie.poster_url}`)
+  : undefined,
     description: movie.origin_name || ""
   }));
 
