@@ -572,20 +572,27 @@ h1 {
   grid-template-columns: repeat(2, 1fr);
 }
 
-/* Các thể loại bên dưới nhỏ gọn hơn */
+/* Các thể loại bên dưới nhỏ gọn */
+#genres {
+  gap: 10px;
+}
+
 #genres .option {
-  padding: 10px 12px;
-  min-height: 58px;
-  font-size: 15px;
+  padding: 8px 8px;
+  min-height: 52px;
+  font-size: 14px;
+  min-width: 0;
 }
 
 #genres .option input {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
 }
 
 #genres .option span {
   white-space: nowrap;
+  font-size: 14px;
 }
 .install-btn {
   width: 100%;
