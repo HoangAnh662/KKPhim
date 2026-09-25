@@ -7,7 +7,7 @@ const manifest = {
   version: "1.0.0",
   name: "KKPhim",
   description: "Kho phim KKPhim – Phim Lẻ, Phim Bộ, Thuyết Minh và Vietsub.",
-
+logo: "https://raw.githubusercontent.com/HoangAnh662/KKPhim/main/logo.png",
   resources: ["catalog", "meta", "stream"],
   types: ["movie", "series"],
 
