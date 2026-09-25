@@ -15,7 +15,11 @@ logo: "https://raw.githubusercontent.com/HoangAnh662/KKPhim/main/logo.png",
   resources: ["catalog", "meta", "stream"],
   types: ["movie", "series"],
 
-  catalogs: [
+behaviorHints: {
+  configurable: true
+},
+
+catalogs: [
   {
     type: "movie",
     id: "kkphim-movie",
