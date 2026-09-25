@@ -1,4 +1,5 @@
-const { addonBuilder, serveHTTP } = require("stremio-addon-sdk");
+const { addonBuilder, getRouter } = require("stremio-addon-sdk");
+const express = require("express");
 const axios = require("axios");
 const API = "https://phimapi.com";
 
@@ -324,8 +325,82 @@ return { streams };
 
 const port = process.env.PORT || 7000;
 
-serveHTTP(builder.getInterface(), {
-  port
+const app = express();
+
+// Trang cấu hình KKPhim
+app.get("/configure", (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="vi">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>Cấu hình KKPhim</title>
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          background: #111;
+          color: white;
+          max-width: 500px;
+          margin: auto;
+          padding: 30px 20px;
+        }
+        h1 { margin-bottom: 30px; }
+        .option {
+          background: #222;
+          padding: 18px;
+          margin: 12px 0;
+          border-radius: 12px;
+          font-size: 18px;
+        }
+        input {
+          transform: scale(1.4);
+          margin-right: 12px;
+        }
+        button {
+          width: 100%;
+          padding: 16px;
+          margin-top: 25px;
+          border: 0;
+          border-radius: 12px;
+          font-size: 17px;
+          font-weight: bold;
+          cursor: pointer;
+        }
+      </style>
+    </head>
+
+    <body>
+      <h1>⚙️ Cấu hình KKPhim</h1>
+
+      <div class="option">
+        <input type="checkbox" id="movie" checked>
+        <label for="movie">Phim lẻ</label>
+      </div>
+
+      <div class="option">
+        <input type="checkbox" id="series" checked>
+        <label for="series">Phim bộ</label>
+      </div>
+
+      <button onclick="installAddon()">
+        CÀI VÀO STREMIO
+      </button>
+
+      <script>
+        function installAddon() {
+          window.location.href =
+            "stremio://kkphim-stremio-addon-ymoc.onrender.com/manifest.json";
+        }
+      </script>
+    </body>
+    </html>
+  `);
 });
 
-console.log(`KKPhim addon running on port ${port}`);
+// Các route catalog / meta / stream hiện tại
+app.use("/", getRouter(builder.getInterface()));
+
+app.listen(port, () => {
+  console.log(\`KKPhim addon running on port \${port}\`);
+});
