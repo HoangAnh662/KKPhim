@@ -568,8 +568,15 @@ h1 {
   }
 } 
 .install-btn {
-  background: #2f80ed;
+  width: 100%;
+  padding: 18px;
+  border: none;
+  border-radius: 22px;
+  background: linear-gradient(90deg, #1296f3, #304ffe);
   color: white;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
 }
 </style>
 </head>
