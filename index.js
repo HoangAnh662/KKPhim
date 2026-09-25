@@ -595,15 +595,15 @@ h1 {
 
     <div class="grid">
 
-      <label class="option default">
-        <input type="checkbox" checked disabled>
-        <span>🎞️ Phim lẻ</span>
-      </label>
+      < <label class="option default">
+  <input type="checkbox" id="movie" value="movie" checked>
+  <span>🎞️ Phim lẻ</span>
+</label>
 
-      <label class="option default">
-        <input type="checkbox" checked disabled>
-        <span>🎬 Phim bộ</span>
-      </label>
+<label class="option default">
+  <input type="checkbox" id="series" value="series" checked>
+  <span>🎬 Phim bộ</span>
+</label>
 
     </div>
 
@@ -717,21 +717,24 @@ function toggleAll() {
 }
 
 function installAddon() {
-  const selected = Array.from(
-    document.querySelectorAll("#genres input:checked")
-  ).map(input => input.value);
+  const selected = [];
 
-  if (selected.length === 0) {
-    window.location.href =
-      "stremio://kkphim-stremio-addon-ymoc.onrender.com/manifest.json";
-    return;
+  if (document.getElementById("movie").checked) {
+    selected.push("movie");
   }
 
-  const genres = selected.join(",");
+  if (document.getElementById("series").checked) {
+    selected.push("series");
+  }
+
+  document.querySelectorAll("#genres input:checked")
+    .forEach(input => selected.push(input.value));
+
+  const config = selected.join(",");
 
   window.location.href =
     "stremio://kkphim-stremio-addon-ymoc.onrender.com/config/" +
-    genres +
+    config +
     "/manifest.json";
 }
 </script>
@@ -745,30 +748,48 @@ function installAddon() {
 // =====================
 
 app.get("/config/:genres/manifest.json", (req, res) => {
-  const selectedGenres = req.params.genres
-    .split(",")
-    .filter(genre => GENRES[genre]);
+  const selected = req.params.genres.split(",");
+
+  const showMovie = selected.includes("movie");
+  const showSeries = selected.includes("series");
+
+  const selectedGenres = selected.filter(
+    item => GENRES[item]
+  );
+
+  const catalogs = [];
+
+  if (showMovie) {
+    catalogs.push(manifest.catalogs[0]);
+  }
+
+  if (showSeries) {
+    catalogs.push(manifest.catalogs[1]);
+  }
+
+  selectedGenres.forEach(genre => {
+    catalogs.push({
+      type: "movie",
+      id: `genre-${genre}`,
+      name: `KKPhim - ${GENRES[genre]}`,
+      extra: [
+        { name: "skip", isRequired: false }
+      ]
+    });
+  });
 
   const customManifest = {
     ...manifest,
-
-    catalogs: [
-      ...manifest.catalogs,
-
-      ...selectedGenres.map(genre => ({
-        type: "movie",
-        id: `genre-${genre}`,
-        name: `KKPhim - ${GENRES[genre]}`,
-        extra: [
-          { name: "skip", isRequired: false }
-        ]
-      }))
-    ]
+    catalogs
   };
 
   res.json(customManifest);
 });
 // Các route catalog / meta / stream hiện tại
+// Route cho addon đã cấu hình
+app.use("/config/:genres", (req, res, next) => {
+  getRouter(builder.getInterface())(req, res, next);
+});
 app.use("/", getRouter(builder.getInterface()));
 
 app.listen(port, () => {
