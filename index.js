@@ -707,7 +707,22 @@ h1 {
 
 <script>
 let allSelected = false;
+const savedConfig = new URLSearchParams(window.location.search)
+  .get("selected");
 
+if (savedConfig) {
+  const saved = savedConfig.split(",");
+
+  const movie = document.getElementById("movie");
+  const series = document.getElementById("series");
+
+  movie.checked = saved.includes("movie");
+  series.checked = saved.includes("series");
+
+  document.querySelectorAll("#genres input").forEach(input => {
+    input.checked = saved.includes(input.value);
+  });
+}
 function toggleAll() {
   allSelected = !allSelected;
 
@@ -749,7 +764,7 @@ function installAddon() {
 // MANIFEST THEO CẤU HÌNH
 // =====================
 app.get("/config/:genres/configure", (req, res) => {
-  res.redirect("/configure");
+  res.redirect("/configure?selected=" + encodeURIComponent(req.params.genres));
 });
 app.get("/config/:genres/manifest.json", (req, res) => {
   const selected = req.params.genres.split(",");
