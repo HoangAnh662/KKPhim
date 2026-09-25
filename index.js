@@ -402,5 +402,5 @@ app.get("/configure", (req, res) => {
 app.use("/", getRouter(builder.getInterface()));
 
 app.listen(port, () => {
-  console.log(\`KKPhim addon running on port \${port}\`);
+console.log(`KKPhim addon running on port ${port}`);
 });
