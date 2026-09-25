@@ -566,6 +566,10 @@ h1 {
   h1 {
     font-size: 25px;
   }
+} 
+.install-btn {
+  background: #2f80ed;
+  color: white;
 }
 </style>
 </head>
@@ -696,7 +700,11 @@ h1 {
       onclick="installAddon()">
       🧩 CÀI VÀO STREMIO →
     </button>
-
+<div style="margin-top:16px;">
+  <button class="install-btn" onclick="copyManifest()">
+    📋 SAO CHÉP ĐƯỜNG DẪN MANIFEST
+  </button>
+</div>
     <div class="note">
       Sau khi chọn xong, nhấn nút để cài addon vào Stremio.
     </div>
@@ -732,7 +740,31 @@ function toggleAll() {
       input.checked = allSelected;
     });
 }
+function copyManifest() {
+  const selected = [];
 
+  if (document.getElementById("movie").checked) {
+    selected.push("movie");
+  }
+
+  if (document.getElementById("series").checked) {
+    selected.push("series");
+  }
+
+  document.querySelectorAll("#genres input:checked")
+    .forEach(input => selected.push(input.value));
+
+  const config = selected.join(",");
+
+  const url =
+    "https://kkphim-stremio-addon-ymoc.onrender.com/config/" +
+    config +
+    "/manifest.json";
+
+  navigator.clipboard.writeText(url);
+
+  alert("Đã sao chép đường dẫn Manifest!");
+}
 function installAddon() {
   const selected = [];
 
