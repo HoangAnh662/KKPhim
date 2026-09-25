@@ -8,6 +8,10 @@ const manifest = {
   name: "KKPhim",
   description: "Kho phim KKPhim – Phim Lẻ, Phim Bộ, Thuyết Minh và Vietsub.",
 logo: "https://raw.githubusercontent.com/HoangAnh662/KKPhim/main/logo.png",
+  stremioAddonsConfig: {
+  issuer: "https://stremio-addons.net",
+  signature: "eyJhbGciOiJkaXIiLCJlbmMiOiJBMTI4Q0JDLUhTMjU2In0..Tq6L-iuX2mORRdfcq0gB0A.rIyAX0bP5vA3UCdMnoEFDRSqLTN6WaPgTrPPGtQqQs4DmIRYf2QfF4eSa9wd5x_deZ7TZqphcVhGnRoYUQQbwCbo1wh6WKiREbtq2l8cdFvkUWKmPokrw0ZXhN5wfFVb.W-nbuM8oysDzOvLhewzevw"
+},
   resources: ["catalog", "meta", "stream"],
   types: ["movie", "series"],
 
