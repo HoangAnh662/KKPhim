@@ -883,6 +883,9 @@ app.get("/config/:genres/manifest.json", (req, res) => {
 app.use("/config/:genres", (req, res, next) => {
   getRouter(builder.getInterface())(req, res, next);
 });
+app.get("/", (req, res) => {
+  res.redirect("/configure");
+});
 app.use("/", getRouter(builder.getInterface()));
 
 app.listen(port, () => {
