@@ -18,7 +18,7 @@ const GENRES = {
 };
 const manifest = {
   id: "org.kkphim.stremio",
-  version: "1.2.3",
+  version: "1.2.4",
   name: "KKPhim",
   description: "Kho phim KKPhim – Phim Lẻ, Phim Bộ, Thuyết Minh và Vietsub.",
 logo: "https://raw.githubusercontent.com/HoangAnh662/KKPhim/main/logo.png",
@@ -132,14 +132,89 @@ async function resolveImdbFallback(imdbId, type) {
     Number(item.year || 0) === year &&
     [item.name, item.origin_name].filter(Boolean).some(name => normalizeText(name) === wanted)
   );
-  if (!candidate?.slug) return null;
+  if (candidate?.slug) {
+    const detail = await axios.get(
+      `${API}/phim/${encodeURIComponent(candidate.slug)}`,
+      { timeout: 8000 }
+    );
+    console.log(`KKPhim title fallback: ${imdbId} -> ${candidate.slug}`);
+    return detail;
+  }
 
-  const detail = await axios.get(
-    `${API}/phim/${encodeURIComponent(candidate.slug)}`,
-    { timeout: 8000 }
-  );
-  console.log(`KKPhim title fallback: ${imdbId} -> ${candidate.slug}`);
-  return detail;
+  // Final fallback: resolve localized/alternative titles from Wikidata by IMDb ID.
+  // Useful when external metadata uses an English title but KKPhim stores a Vietnamese title.
+  try {
+    const sparql = `
+      SELECT ?item ?itemLabel ?altLabel WHERE {
+        ?item wdt:P345 "${imdbId}".
+        OPTIONAL {
+          ?item skos:altLabel ?altLabel.
+          FILTER(LANG(?altLabel) IN ("vi", "en"))
+        }
+        SERVICE wikibase:label {
+          bd:serviceParam wikibase:language "vi,en".
+        }
+      }
+    `;
+
+    const wikidata = await axios.get(
+      "https://query.wikidata.org/sparql",
+      {
+        params: { query: sparql, format: "json" },
+        headers: {
+          "User-Agent": "KKPhim-Stremio-Addon/1.2.4"
+        },
+        timeout: 8000
+      }
+    );
+
+    const bindings = wikidata.data?.results?.bindings || [];
+    const aliases = Array.from(new Set(
+      bindings.flatMap(row => [
+        row.itemLabel?.value,
+        row.altLabel?.value
+      ]).filter(Boolean)
+    ));
+
+    for (const alias of aliases) {
+      const aliasSearch = await axios.get(`${API}/v1/api/tim-kiem`, {
+        params: { keyword: alias, year: year || undefined, page: 1 },
+        timeout: 8000
+      });
+
+      const aliasItems =
+        aliasSearch.data?.data?.items ||
+        aliasSearch.data?.items ||
+        [];
+
+      const aliasWanted = normalizeText(alias);
+      const aliasCandidate = aliasItems.find(item => {
+        const itemYear = Number(item.year || 0);
+        const yearOk = !year || !itemYear || itemYear === year;
+        const nameOk = [item.name, item.origin_name]
+          .filter(Boolean)
+          .some(name => normalizeText(name) === aliasWanted);
+        return yearOk && nameOk;
+      });
+
+      if (aliasCandidate?.slug) {
+        const detail = await axios.get(
+          `${API}/phim/${encodeURIComponent(aliasCandidate.slug)}`,
+          { timeout: 8000 }
+        );
+        console.log(
+          `KKPhim Wikidata fallback: ${imdbId} -> ${aliasCandidate.slug} via "${alias}"`
+        );
+        return detail;
+      }
+    }
+  } catch (wikidataError) {
+    console.log(
+      `Wikidata fallback failed for ${imdbId}: ${wikidataError.message}`
+    );
+  }
+
+  return null;
 }
 
 const builder = new addonBuilder(manifest);

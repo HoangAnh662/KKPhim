@@ -1,6 +1,6 @@
 {
   "name": "kkphim-stremio-addon",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "description": "KKPhim addon for Stremio",
   "main": "index.js",
   "scripts": {
