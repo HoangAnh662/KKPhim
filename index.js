@@ -18,7 +18,7 @@ const GENRES = {
 };
 const manifest = {
   id: "org.kkphim.stremio",
-  version: "1.2.1",
+  version: "1.2.2",
   name: "KKPhim",
   description: "Kho phim KKPhim – Phim Lẻ, Phim Bộ, Thuyết Minh và Vietsub.",
 logo: "https://raw.githubusercontent.com/HoangAnh662/KKPhim/main/logo.png",
@@ -80,30 +80,24 @@ function normalizeText(value = "") {
 }
 
 async function resolveImdbFallback(imdbId, type) {
-  // Public metadata lookup used only when PhimAPI's direct IMDb mapping misses.
-  const imdbMeta = await axios.get(
-    `https://api.imdbapi.dev/titles/${encodeURIComponent(imdbId)}`,
+  // Cinemeta is Stremio's official metadata source for IMDb IDs.
+  const metaType = type === "series" ? "series" : "movie";
+  const cinemeta = await axios.get(
+    `https://v3-cinemeta.strem.io/meta/${metaType}/${encodeURIComponent(imdbId)}.json`,
     { timeout: 8000 }
   );
 
-  const info = imdbMeta.data || {};
-  const title =
-    info.primaryTitle ||
-    info.primary_title ||
-    info.originalTitle ||
-    info.original_title ||
-    info.title ||
-    "";
-
+  const info = cinemeta.data?.meta || {};
+  const title = info.name || "";
   const originalTitle =
-    info.originalTitle ||
-    info.original_title ||
+    info.originalName ||
+    info.original_name ||
+    info.name ||
     "";
 
   const year = Number(
-    info.startYear ||
-    info.start_year ||
     info.year ||
+    String(info.releaseInfo || "").match(/\d{4}/)?.[0] ||
     0
   );
 
