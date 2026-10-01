@@ -18,7 +18,7 @@ const GENRES = {
 };
 const manifest = {
   id: "org.kkphim.stremio",
-  version: "1.0.0",
+  version: "1.1.0",
   name: "KKPhim",
   description: "Kho phim KKPhim – Phim Lẻ, Phim Bộ, Thuyết Minh và Vietsub.",
 logo: "https://raw.githubusercontent.com/HoangAnh662/KKPhim/main/logo.png",
@@ -56,6 +56,18 @@ catalogs: [
 
   idPrefixes: ["kkphim:", "tt"]
 };
+
+function normalizeImage(url) {
+  if (!url) return undefined;
+  return url.startsWith("http") ? url : `https://phimimg.com/${url.replace(/^\/+/, "")}`;
+}
+
+function normalizeType(movie, fallbackType = "movie") {
+  const raw = String(movie?.type || movie?.category || "").toLowerCase();
+  if (raw === "series" || raw === "tvshows" || raw === "phim-bo") return "series";
+  if (raw === "single" || raw === "movie" || raw === "phim-le") return "movie";
+  return fallbackType;
+}
 
 const builder = new addonBuilder(manifest);
 
@@ -127,11 +139,9 @@ if (id?.startsWith("genre-")) {
 
       const metas = items.map(movie => ({
         id: `kkphim:${movie.slug}`,
-        type,
+        type: normalizeType(movie, type),
         name: movie.name,
-        poster:
-          movie.poster_url ||
-          `https://phimimg.com/${movie.poster_url || ""}`,
+        poster: normalizeImage(movie.poster_url),
         description: movie.origin_name || ""
       }));
 
@@ -171,9 +181,7 @@ const metas = uniqueItems.map(movie => ({
   id: `kkphim:${movie.slug}`,
   type,
   name: movie.name,
-  poster:
-    movie.poster_url ||
-    `https://phimimg.com/${movie.poster_url || ""}`,
+  poster: normalizeImage(movie.poster_url),
   description: movie.origin_name || ""
 }));
 
@@ -209,8 +217,8 @@ builder.defineMetaHandler(async ({ type, id }) => {
       id,
       type,
       name: movie.name,
-      poster: movie.poster_url,
-      background: movie.thumb_url,
+      poster: normalizeImage(movie.poster_url),
+      background: normalizeImage(movie.thumb_url),
       description: movie.content || "",
       releaseInfo: movie.year
         ? String(movie.year)
@@ -228,8 +236,13 @@ builder.defineMetaHandler(async ({ type, id }) => {
 
       if (servers.length > 0) {
 
-        servers[0].server_data.forEach((ep, index) => {
+        const bestServer = servers.reduce((best, server) => {
+          const count = Array.isArray(server?.server_data) ? server.server_data.length : 0;
+          const bestCount = Array.isArray(best?.server_data) ? best.server_data.length : 0;
+          return count > bestCount ? server : best;
+        }, servers[0]);
 
+        (bestServer.server_data || []).forEach((ep, index) => {
           episodes.push({
             id: `${id}:${index}`,
             title: ep.name || `Tập ${index + 1}`,
@@ -237,7 +250,6 @@ builder.defineMetaHandler(async ({ type, id }) => {
             season: 1,
             episode: index + 1
           });
-
         });
 
       }
@@ -799,7 +811,7 @@ function copyManifest() {
 
   const msg = document.createElement("div");
 msg.innerHTML = "✅ ĐÃ SAO CHÉP!";
-msg.style.cssText = "position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#22183d;color:white;padding:18px 28px;border:2px solid #a83cff;border-radius:18px;font-size:18px;font-weight:700;z-index:9999;box-shadow:0 0 25px #8b2cff;white-space:nowrap;"; msg.style.cssText = "position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#22183d;color:white;padding:18px 28px;border:2px solid #a83cff;border-radius:18px;font-size:18px;font-weight:700;z-index:9999;box-shadow:0 0 25px #8b2cff;white-space:nowrap;";
+msg.style.cssText = "position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#22183d;color:white;padding:18px 28px;border:2px solid #a83cff;border-radius:18px;font-size:18px;font-weight:700;z-index:9999;box-shadow:0 0 25px #8b2cff;white-space:nowrap;";
 
 document.body.appendChild(msg);
 
