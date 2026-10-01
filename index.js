@@ -18,7 +18,7 @@ const GENRES = {
 };
 const manifest = {
   id: "org.kkphim.stremio",
-  version: "1.1.0",
+  version: "1.1.1",
   name: "KKPhim",
   description: "Kho phim KKPhim – Phim Lẻ, Phim Bộ, Thuyết Minh và Vietsub.",
 logo: "https://raw.githubusercontent.com/HoangAnh662/KKPhim/main/logo.png",
@@ -195,10 +195,20 @@ builder.defineMetaHandler(async ({ type, id }) => {
 
   try {
 
-    const slug = id.replace("kkphim:", "");
+    // META của addon chỉ quản lý các ID nội bộ kkphim:<slug>.
+    // IMDb/TMDB IDs thuộc metadata addon khác; không được biến chúng thành slug KKPhim.
+    if (!id || !id.startsWith("kkphim:")) {
+      return { meta: null };
+    }
+
+    const slug = id.slice("kkphim:".length).split(":")[0];
+
+    if (!slug) {
+      return { meta: null };
+    }
 
     const response = await axios.get(
-      `${API}/phim/${slug}`
+      `${API}/phim/${encodeURIComponent(slug)}`
     );
 
     const movie = response.data.movie;
