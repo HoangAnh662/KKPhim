@@ -18,7 +18,7 @@ const GENRES = {
 };
 const manifest = {
   id: "org.kkphim.stremio",
-  version: "1.2.0",
+  version: "1.2.1",
   name: "KKPhim",
   description: "Kho phim KKPhim – Phim Lẻ, Phim Bộ, Thuyết Minh và Vietsub.",
 logo: "https://raw.githubusercontent.com/HoangAnh662/KKPhim/main/logo.png",
@@ -67,6 +67,117 @@ function normalizeType(movie, fallbackType = "movie") {
   if (raw === "series" || raw === "tvshows" || raw === "phim-bo") return "series";
   if (raw === "single" || raw === "movie" || raw === "phim-le") return "movie";
   return fallbackType;
+}
+
+
+function normalizeText(value = "") {
+  return String(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+async function resolveImdbFallback(imdbId, type) {
+  // Public metadata lookup used only when PhimAPI's direct IMDb mapping misses.
+  const imdbMeta = await axios.get(
+    `https://api.imdbapi.dev/titles/${encodeURIComponent(imdbId)}`,
+    { timeout: 8000 }
+  );
+
+  const info = imdbMeta.data || {};
+  const title =
+    info.primaryTitle ||
+    info.primary_title ||
+    info.originalTitle ||
+    info.original_title ||
+    info.title ||
+    "";
+
+  const originalTitle =
+    info.originalTitle ||
+    info.original_title ||
+    "";
+
+  const year = Number(
+    info.startYear ||
+    info.start_year ||
+    info.year ||
+    0
+  );
+
+  if (!title) return null;
+
+  const queries = Array.from(new Set([title, originalTitle].filter(Boolean)));
+
+  for (const query of queries) {
+    const search = await axios.get(`${API}/v1/api/tim-kiem`, {
+      params: { keyword: query, page: 1, limit: 20 },
+      timeout: 8000
+    });
+
+    const items =
+      search.data?.data?.items ||
+      search.data?.items ||
+      [];
+
+    const wantedType = type === "series" ? "series" : "movie";
+    const wantedNames = [title, originalTitle]
+      .filter(Boolean)
+      .map(normalizeText);
+
+    const ranked = items
+      .filter(item => normalizeType(item, wantedType) === wantedType)
+      .map(item => {
+        const itemNames = [item.name, item.origin_name]
+          .filter(Boolean)
+          .map(normalizeText);
+        const nameMatch = itemNames.some(name => wantedNames.includes(name));
+        const itemYear = Number(item.year || 0);
+        const yearMatch = year && itemYear && year === itemYear;
+        return {
+          item,
+          score: (nameMatch ? 10 : 0) + (yearMatch ? 4 : 0)
+        };
+      })
+      .filter(entry => entry.score >= 10)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5);
+
+    for (const { item } of ranked) {
+      try {
+        const detail = await axios.get(
+          `${API}/phim/${encodeURIComponent(item.slug)}`,
+          { timeout: 8000 }
+        );
+
+        const movie = detail.data?.movie || {};
+        const candidateImdb =
+          movie.imdb?.id ||
+          movie.imdb_id ||
+          "";
+
+        if (candidateImdb === imdbId) {
+          console.log(`IMDb fallback exact: ${imdbId} -> ${item.slug}`);
+          return detail;
+        }
+
+        const candidateNames = [movie.name, movie.origin_name]
+          .filter(Boolean)
+          .map(normalizeText);
+        const nameMatch = candidateNames.some(name => wantedNames.includes(name));
+        const candidateYear = Number(movie.year || item.year || 0);
+
+        if (nameMatch && (!year || !candidateYear || year === candidateYear)) {
+          console.log(`IMDb fallback title/year: ${imdbId} -> ${item.slug}`);
+          return detail;
+        }
+      } catch (_) {}
+    }
+  }
+
+  return null;
 }
 
 const builder = new addonBuilder(manifest);
@@ -318,14 +429,26 @@ builder.defineStreamHandler(async ({ type, id }) => {
         }
       }
 
-      response = await axios.get(
-        `${API}/imdb/title/${encodeURIComponent(imdbId)}`,
-        {
-          params: {
-            type: type === "series" ? "tv" : "movie"
+      try {
+        response = await axios.get(
+          `${API}/imdb/title/${encodeURIComponent(imdbId)}`,
+          {
+            params: {
+              type: type === "series" ? "tv" : "movie"
+            },
+            timeout: 8000
           }
+        );
+      } catch (directError) {
+        if (directError.response?.status !== 404) throw directError;
+
+        response = await resolveImdbFallback(imdbId, type);
+
+        if (!response) {
+          console.log(`No KKPhim match for IMDb: ${imdbId}`);
+          return { streams: [] };
         }
-      );
+      }
     }
 
     else {
