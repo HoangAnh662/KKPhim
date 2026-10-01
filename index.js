@@ -18,7 +18,7 @@ const GENRES = {
 };
 const manifest = {
   id: "org.kkphim.stremio",
-  version: "1.2.2",
+  version: "1.2.3",
   name: "KKPhim",
   description: "Kho phim KKPhim – Phim Lẻ, Phim Bộ, Thuyết Minh và Vietsub.",
 logo: "https://raw.githubusercontent.com/HoangAnh662/KKPhim/main/logo.png",
@@ -80,7 +80,6 @@ function normalizeText(value = "") {
 }
 
 async function resolveImdbFallback(imdbId, type) {
-  // Cinemeta is Stremio's official metadata source for IMDb IDs.
   const metaType = type === "series" ? "series" : "movie";
   const cinemeta = await axios.get(
     `https://v3-cinemeta.strem.io/meta/${metaType}/${encodeURIComponent(imdbId)}.json`,
@@ -89,89 +88,58 @@ async function resolveImdbFallback(imdbId, type) {
 
   const info = cinemeta.data?.meta || {};
   const title = info.name || "";
-  const originalTitle =
-    info.originalName ||
-    info.original_name ||
-    info.name ||
-    "";
-
   const year = Number(
     info.year ||
     String(info.releaseInfo || "").match(/\d{4}/)?.[0] ||
     0
   );
 
-  if (!title) return null;
-
-  const queries = Array.from(new Set([title, originalTitle].filter(Boolean)));
-
-  for (const query of queries) {
-    const search = await axios.get(`${API}/v1/api/tim-kiem`, {
-      params: { keyword: query, page: 1, limit: 20 },
-      timeout: 8000
-    });
-
-    const items =
-      search.data?.data?.items ||
-      search.data?.items ||
-      [];
-
-    const wantedType = type === "series" ? "series" : "movie";
-    const wantedNames = [title, originalTitle]
-      .filter(Boolean)
-      .map(normalizeText);
-
-    const ranked = items
-      .filter(item => normalizeType(item, wantedType) === wantedType)
-      .map(item => {
-        const itemNames = [item.name, item.origin_name]
-          .filter(Boolean)
-          .map(normalizeText);
-        const nameMatch = itemNames.some(name => wantedNames.includes(name));
-        const itemYear = Number(item.year || 0);
-        const yearMatch = year && itemYear && year === itemYear;
-        return {
-          item,
-          score: (nameMatch ? 10 : 0) + (yearMatch ? 4 : 0)
-        };
-      })
-      .filter(entry => entry.score >= 10)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 5);
-
-    for (const { item } of ranked) {
-      try {
-        const detail = await axios.get(
-          `${API}/phim/${encodeURIComponent(item.slug)}`,
-          { timeout: 8000 }
-        );
-
-        const movie = detail.data?.movie || {};
-        const candidateImdb =
-          movie.imdb?.id ||
-          movie.imdb_id ||
-          "";
-
-        if (candidateImdb === imdbId) {
-          console.log(`IMDb fallback exact: ${imdbId} -> ${item.slug}`);
-          return detail;
-        }
-
-        const candidateNames = [movie.name, movie.origin_name]
-          .filter(Boolean)
-          .map(normalizeText);
-        const nameMatch = candidateNames.some(name => wantedNames.includes(name));
-        const candidateYear = Number(movie.year || item.year || 0);
-
-        if (nameMatch && (!year || !candidateYear || year === candidateYear)) {
-          console.log(`IMDb fallback title/year: ${imdbId} -> ${item.slug}`);
-          return detail;
-        }
-      } catch (_) {}
+  // Cinemeta metadata includes TMDB IDs in links for many titles.
+  let tmdbId = null;
+  const links = Array.isArray(info.links) ? info.links : [];
+  for (const link of links) {
+    const raw = String(link?.url || link?.id || link?.name || "");
+    const match = raw.match(/tmdb[:/](\d+)/i);
+    if (match) {
+      tmdbId = match[1];
+      break;
     }
   }
 
-  return null;
+  // Yastream's KKPhim provider does this first: /tmdb/{movie|tv}/{tmdbId}.
+  if (tmdbId) {
+    try {
+      const byTmdb = await axios.get(
+        `${API}/tmdb/${type === "series" ? "tv" : "movie"}/${tmdbId}`,
+        { timeout: 8000 }
+      );
+      if (byTmdb.data?.status && byTmdb.data?.episodes?.length) {
+        console.log(`KKPhim TMDB match: ${imdbId} -> ${tmdbId}`);
+        return byTmdb;
+      }
+    } catch (_) {}
+  }
+
+  // If Cinemeta did not expose TMDB ID, try KKPhim search as a final fallback.
+  if (!title) return null;
+  const search = await axios.get(`${API}/v1/api/tim-kiem`, {
+    params: { keyword: title, year: year || undefined, page: 1 },
+    timeout: 8000
+  });
+  const items = search.data?.data?.items || search.data?.items || [];
+  const wanted = normalizeText(title);
+  const candidate = items.find(item =>
+    Number(item.year || 0) === year &&
+    [item.name, item.origin_name].filter(Boolean).some(name => normalizeText(name) === wanted)
+  );
+  if (!candidate?.slug) return null;
+
+  const detail = await axios.get(
+    `${API}/phim/${encodeURIComponent(candidate.slug)}`,
+    { timeout: 8000 }
+  );
+  console.log(`KKPhim title fallback: ${imdbId} -> ${candidate.slug}`);
+  return detail;
 }
 
 const builder = new addonBuilder(manifest);
