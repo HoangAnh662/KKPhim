@@ -107,15 +107,9 @@ if (id?.startsWith("genre-")) {
 
   const metas = items.map(movie => ({
     id: `kkphim:${movie.slug}`,
-    type: movie.type === "series"
-      ? "series"
-      : "movie",
+    type: normalizeType(movie, "movie"),
     name: movie.name,
-    poster: movie.poster_url
-  ? (movie.poster_url.startsWith("http")
-      ? movie.poster_url
-      : `https://phimimg.com/${movie.poster_url}`)
-  : undefined,
+    poster: normalizeImage(movie.poster_url),
     description: movie.origin_name || ""
   }));
 
