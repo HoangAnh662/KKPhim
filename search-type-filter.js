@@ -1,5 +1,7 @@
 // Search catalog type guard for Nuvio/Stremio.
 // Loaded before index.js so search results are verified against KKPhim detail data.
+// Known types are kept only in the correct catalog. Unknown/failed checks are kept
+// in the requested catalog so search never loses a KKPhim result.
 const sdk = require("stremio-addon-sdk");
 const axios = require("axios");
 
@@ -8,7 +10,7 @@ const originalDefineCatalogHandler = sdk.addonBuilder.prototype.defineCatalogHan
 
 function actualType(movie) {
   const raw = String(movie?.type || movie?.category || "").toLowerCase();
-  if (["series", "tvshows", "phim-bo", "hoathinh"].includes(raw)) return "series";
+  if (["series", "tvshows", "phim-bo"].includes(raw)) return "series";
   if (["single", "movie", "phim-le"].includes(raw)) return "movie";
   return null;
 }
@@ -24,11 +26,13 @@ sdk.addonBuilder.prototype.defineCatalogHandler = function (handler) {
 
     const checked = await Promise.all(
       result.metas.map(async meta => {
+        const fallback = { ...meta, type: args.type };
         const slug = String(meta?.id || "").startsWith("kkphim:")
           ? String(meta.id).slice("kkphim:".length).split(":")[0]
           : "";
 
-        if (!slug) return null;
+        // Never drop a search result just because its slug/type cannot be verified.
+        if (!slug) return fallback;
 
         try {
           const detail = await axios.get(`${API}/phim/${encodeURIComponent(slug)}`, {
@@ -37,18 +41,22 @@ sdk.addonBuilder.prototype.defineCatalogHandler = function (handler) {
           const movie = detail.data?.movie;
           const type = actualType(movie);
 
-          // Unknown types are excluded instead of being duplicated into both catalogs.
-          if (!type || type !== args.type) return null;
+          // If KKPhim clearly identifies the type, show it only in the correct row.
+          if (type) {
+            if (type !== args.type) return null;
+            return { ...meta, type };
+          }
 
-          return { ...meta, type };
+          // Unknown type: keep it instead of risking a missing search result.
+          return fallback;
         } catch (error) {
           console.log(`Search type check failed: ${slug} - ${error.message}`);
-          return null;
+          // Temporary API/detail failure must not make the movie disappear.
+          return fallback;
         }
       })
     );
 
-    const metas = checked.filter(Boolean);
-    return { ...result, metas };
+    return { ...result, metas: checked.filter(Boolean) };
   });
 };
