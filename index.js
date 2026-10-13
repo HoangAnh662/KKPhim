@@ -492,6 +492,29 @@ builder.defineStreamHandler(async ({ type, id }) => {
       return { streams: [] };
     }
 
+    // IMDb series: prevent returning a different season when KKPhim
+    // resolves a season-specific title (e.g. Part 4 for season 1).
+    // Conservative guard: it does not guess a replacement season.
+    if (type === "series" && id.startsWith("tt")) {
+      const parts = id.split(":");
+      const requestedSeason = Number(parts[1]);
+      const requestedEpisode = Number(parts[2]);
+      if (!Number.isInteger(requestedSeason) || requestedSeason < 1 ||
+          !Number.isInteger(requestedEpisode) || requestedEpisode < 1) {
+        return { streams: [] };
+      }
+      const movie = response.data?.movie || {};
+      const seasonText = [movie.name, movie.origin_name, movie.slug]
+        .filter(Boolean).join(" ");
+      const seasonMatch = seasonText.match(
+        /(?:phần|phan|season|ss)\\s*[-_. ]*([0-9]{1,2})\\b/i
+      );
+      if (seasonMatch && Number(seasonMatch[1]) !== requestedSeason) {
+        console.log(`KKPhim season mismatch: ${id} -> ${movie.name}`);
+        return { streams: [] };
+      }
+    }
+
     const servers =
       response.data.episodes || [];
 
