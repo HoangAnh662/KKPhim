@@ -54,7 +54,7 @@ catalogs: [
   }
 ],
 
-  idPrefixes: ["kkphim:", "tt"]
+  idPrefixes: ["kkphim:", "tt", "tmdb:"]
 };
 
 function normalizeImage(url) {
@@ -558,6 +558,37 @@ builder.defineStreamHandler(async ({ type, id }) => {
       response = await axios.get(
         `${API}/phim/${slug}`
       );
+    }
+
+    // TMDB catalog: resolve directly by TMDB ID, without title guessing.
+    else if (id.startsWith("tmdb:")) {
+      const match = id.match(/^tmdb:(\\d+)(?::(\\d+):(\\d+))?$/);
+      if (!match) return { streams: [] };
+      const [, tmdbId, season, episode] = match;
+      if (type === "series") {
+        if (!season || !episode || Number(season) < 1 || Number(episode) < 1) {
+          return { streams: [] };
+        }
+        episodeIndex = Number(episode) - 1;
+      }
+      try {
+        response = await axios.get(
+          `${API}/tmdb/${type === "series" ? "tv" : "movie"}/${tmdbId}`,
+          { timeout: 8000 }
+        );
+      } catch (error) {
+        if (error.response?.status === 404) return { streams: [] };
+        throw error;
+      }
+      if (!response.data?.status || !response.data?.episodes?.length) {
+        return { streams: [] };
+      }
+      if (type === "series") {
+        const actualSeason = Number(response.data.movie?.tmdb?.season);
+        if (Number.isInteger(actualSeason) && actualSeason > 0 && actualSeason !== Number(season)) {
+          return { streams: [] };
+        }
+      }
     }
 
     // =====================================
