@@ -18,7 +18,7 @@ const GENRES = {
 };
 const manifest = {
   id: "org.kkphim.stremio",
-  version: "1.2.4",
+  version: "1.2.5",
   name: "KKPhim",
   description: "Kho phim KKPhim – Phim Lẻ, Phim Bộ, Thuyết Minh và Vietsub.",
 logo: "https://raw.githubusercontent.com/HoangAnh662/KKPhim/main/logo.png",
@@ -54,7 +54,7 @@ catalogs: [
   }
 ],
 
-  idPrefixes: ["kkphim:", "tt"]
+  idPrefixes: ["kkphim:", "tt", "tmdb:"]
 };
 
 function normalizeImage(url) {
@@ -70,6 +70,12 @@ function normalizeType(movie, fallbackType = "movie") {
 }
 
 
+function yearMatches(candidateYear, requestedYear) {
+  const a = Number(candidateYear || 0);
+  const b = Number(requestedYear || 0);
+  return !a || !b || Math.abs(a - b) <= 1;
+}
+
 function normalizeText(value = "") {
   return String(value)
     .normalize("NFD")
@@ -81,12 +87,17 @@ function normalizeText(value = "") {
 
 async function resolveImdbFallback(imdbId, type) {
   const metaType = type === "series" ? "series" : "movie";
-  const cinemeta = await axios.get(
-    `https://v3-cinemeta.strem.io/meta/${metaType}/${encodeURIComponent(imdbId)}.json`,
-    { timeout: 8000 }
-  );
+  let info = {};
+  try {
+    const cinemeta = await axios.get(
+      `https://v3-cinemeta.strem.io/meta/${metaType}/${encodeURIComponent(imdbId)}.json`,
+      { timeout: 8000 }
+    );
+    info = cinemeta.data?.meta || {};
+  } catch (error) {
+    console.log(`Cinemeta unavailable for ${imdbId}: ${error.message}`);
+  }
 
-  const info = cinemeta.data?.meta || {};
   const title = info.name || "";
   const year = Number(
     info.year ||
@@ -106,7 +117,6 @@ async function resolveImdbFallback(imdbId, type) {
     }
   }
 
-  // Yastream's KKPhim provider does this first: /tmdb/{movie|tv}/{tmdbId}.
   if (tmdbId) {
     try {
       const byTmdb = await axios.get(
@@ -122,23 +132,38 @@ async function resolveImdbFallback(imdbId, type) {
 
   // If Cinemeta did not expose TMDB ID, try KKPhim search as a final fallback.
   if (!title) return null;
-  const search = await axios.get(`${API}/v1/api/tim-kiem`, {
-    params: { keyword: title, year: year || undefined, page: 1 },
-    timeout: 8000
-  });
-  const items = search.data?.data?.items || search.data?.items || [];
   const wanted = normalizeText(title);
-  const candidate = items.find(item =>
-    Number(item.year || 0) === year &&
-    [item.name, item.origin_name].filter(Boolean).some(name => normalizeText(name) === wanted)
-  );
-  if (candidate?.slug) {
-    const detail = await axios.get(
-      `${API}/phim/${encodeURIComponent(candidate.slug)}`,
-      { timeout: 8000 }
-    );
-    console.log(`KKPhim title fallback: ${imdbId} -> ${candidate.slug}`);
-    return detail;
+  const searchVariants = [...new Set([title, normalizeText(title)])];
+  for (const keyword of searchVariants) {
+    try {
+      const search = await axios.get(`${API}/v1/api/tim-kiem`, {
+        params: { keyword, page: 1 }, timeout: 8000
+      });
+      const items = search.data?.data?.items || search.data?.items || [];
+      const candidates = items.filter(item => {
+        const itemYear = Number(item.year || 0);
+        const yearOk = yearMatches(itemYear, year);
+        const nameOk = [item.name, item.origin_name]
+          .filter(Boolean)
+          .some(name => normalizeText(name) === wanted);
+        return item.slug && yearOk && nameOk;
+      });
+      for (const candidate of candidates.slice(0, 3)) {
+        const detail = await axios.get(
+          `${API}/phim/${encodeURIComponent(candidate.slug)}`,
+          { timeout: 8000 }
+        );
+        if (detail.data?.episodes?.length &&
+            yearMatches(detail.data?.movie?.year, year) &&
+            [detail.data?.movie?.name, detail.data?.movie?.origin_name]
+              .some(name => normalizeText(name) === wanted)) {
+          console.log(`KKPhim normalized title match: ${imdbId} -> ${candidate.slug}`);
+          return detail;
+        }
+      }
+    } catch (error) {
+      console.log(`KKPhim title lookup failed: ${error.message}`);
+    }
   }
 
   // Final fallback: resolve localized/alternative titles from Wikidata by IMDb ID.
@@ -214,6 +239,92 @@ async function resolveImdbFallback(imdbId, type) {
     );
   }
 
+  return null;
+}
+
+
+function extractSeason(movie) {
+  const value = [movie?.name, movie?.origin_name, movie?.slug].filter(Boolean).join(" ");
+  const match = value.match(/(?:phần|phan|season|ss)\s*[-_. ]*([0-9]{1,2})\b/i);
+  return match ? Number(match[1]) : null;
+}
+
+function baseSeriesTitle(value) {
+  return normalizeText(String(value || "")
+    .replace(/\s*[\(\[]?\s*(?:phần|phan|season|ss)\s*[-_. ]*\d{1,2}\s*[\)\]]?/gi, " "));
+}
+
+
+const IMDB_SERIES_ALIASES = {
+  tt0903747: ["Breaking Bad", "Tập Làm Người Xấu"],
+  tt0944947: ["Game of Thrones", "Trò Chơi Vương Quyền"]
+};
+
+async function resolveKnownSeriesSeason(imdbId, season) {
+  const aliases = IMDB_SERIES_ALIASES[imdbId];
+  if (!aliases) return null;
+  const normalizedAliases = aliases.map(baseSeriesTitle);
+  for (const keyword of aliases) {
+    try {
+      const result = await axios.get(`${API}/v1/api/tim-kiem`, {
+        params: { keyword, page: 1 }, timeout: 6000
+      });
+      const items = result.data?.data?.items || result.data?.items || [];
+      const matches = items.filter(item =>
+        item.slug &&
+        extractSeason(item) === season &&
+        [item.name, item.origin_name].some(v =>
+          normalizedAliases.includes(baseSeriesTitle(v))
+        )
+      );
+      for (const item of matches.slice(0, 3)) {
+        const detail = await axios.get(
+          `${API}/phim/${encodeURIComponent(item.slug)}`,
+          { timeout: 6000 }
+        );
+        if (extractSeason(detail.data?.movie) === season &&
+            Array.isArray(detail.data?.episodes) &&
+            detail.data.episodes.length) {
+          console.log(`KKPhim alias season match: ${imdbId} S${season} -> ${item.slug}`);
+          return detail;
+        }
+      }
+    } catch (error) {
+      console.log(`KKPhim alias lookup failed: ${error.message}`);
+    }
+  }
+  return null;
+}
+
+async function resolveMatchingSeason(sourceMovie, season) {
+  if (!Number.isInteger(season) || season < 1 || season > 99) return null;
+  const names = [sourceMovie?.origin_name, sourceMovie?.name]
+    .filter(Boolean).map(baseSeriesTitle).filter(Boolean);
+  if (!names.length) return null;
+  const queries = [...new Set([sourceMovie?.origin_name, sourceMovie?.name]
+    .filter(Boolean).map(v => String(v).replace(/\s*[\(\[]?\s*(?:phần|phan|season|ss)\s*[-_. ]*\d{1,2}\s*[\)\]]?/gi, "").trim()))];
+  for (const keyword of queries.slice(0, 2)) {
+    try {
+      const result = await axios.get(`${API}/v1/api/tim-kiem`, {
+        params: { keyword, page: 1 }, timeout: 6000
+      });
+      const items = result.data?.data?.items || result.data?.items || [];
+      const matches = items.filter(item =>
+        extractSeason(item) === season &&
+        [item.name, item.origin_name].some(v => names.includes(baseSeriesTitle(v))) &&
+        item.slug
+      );
+      for (const item of matches.slice(0, 3)) {
+        const detail = await axios.get(`${API}/phim/${encodeURIComponent(item.slug)}`, { timeout: 6000 });
+        if (extractSeason(detail.data?.movie) === season &&
+            Array.isArray(detail.data?.episodes) && detail.data.episodes.length) {
+          return detail;
+        }
+      }
+    } catch (error) {
+      console.log(`KKPhim season lookup failed: ${error.message}`);
+    }
+  }
   return null;
 }
 
@@ -449,6 +560,37 @@ builder.defineStreamHandler(async ({ type, id }) => {
       );
     }
 
+    // TMDB catalog: resolve directly by TMDB ID, without title guessing.
+    else if (id.startsWith("tmdb:")) {
+      const match = id.match(/^tmdb:(\d+)(?::(\d+):(\d+))?$/);
+      if (!match) return { streams: [] };
+      const [, tmdbId, season, episode] = match;
+      if (type === "series") {
+        if (!season || !episode || Number(season) < 1 || Number(episode) < 1) {
+          return { streams: [] };
+        }
+        episodeIndex = Number(episode) - 1;
+      }
+      try {
+        response = await axios.get(
+          `${API}/tmdb/${type === "series" ? "tv" : "movie"}/${tmdbId}`,
+          { timeout: 8000 }
+        );
+      } catch (error) {
+        if (error.response?.status === 404) return { streams: [] };
+        throw error;
+      }
+      if (!response.data?.status || !response.data?.episodes?.length) {
+        return { streams: [] };
+      }
+      if (type === "series") {
+        const actualSeason = Number(response.data.movie?.tmdb?.season);
+        if (Number.isInteger(actualSeason) && actualSeason > 0 && actualSeason !== Number(season)) {
+          return { streams: [] };
+        }
+      }
+    }
+
     // =====================================
     // PHIM TỪ TÌM KIẾM STREMIO / IMDB
     // =====================================
@@ -481,6 +623,9 @@ builder.defineStreamHandler(async ({ type, id }) => {
 
         response = await resolveImdbFallback(imdbId, type);
 
+        if (!response && type === "series") {
+          response = await resolveKnownSeriesSeason(imdbId, Number(parts[1]));
+        }
         if (!response) {
           console.log(`No KKPhim match for IMDb: ${imdbId}`);
           return { streams: [] };
@@ -490,6 +635,40 @@ builder.defineStreamHandler(async ({ type, id }) => {
 
     else {
       return { streams: [] };
+    }
+
+    // IMDb series: prevent returning a different season when KKPhim
+    // resolves a season-specific title (e.g. Part 4 for season 1).
+    // Conservative guard: it does not guess a replacement season.
+    if (type === "series" && id.startsWith("tt")) {
+      const parts = id.split(":");
+      const requestedSeason = Number(parts[1]);
+      const requestedEpisode = Number(parts[2]);
+      if (!Number.isInteger(requestedSeason) || requestedSeason < 1 ||
+          !Number.isInteger(requestedEpisode) || requestedEpisode < 1) {
+        return { streams: [] };
+      }
+      if (!response.data?.episodes?.length) {
+        const aliasMatch = await resolveKnownSeriesSeason(parts[0], requestedSeason);
+        if (aliasMatch) response = aliasMatch;
+      }
+      const movie = response.data?.movie || {};
+      const seasonText = [movie.name, movie.origin_name, movie.slug]
+        .filter(Boolean).join(" ");
+      const seasonMatch = seasonText.match(
+        /(?:phần|phan|season|ss)\s*[-_. ]*([0-9]{1,2})\b/i
+      );
+      if (seasonMatch && Number(seasonMatch[1]) !== requestedSeason) {
+        console.log(`KKPhim season mismatch: ${id} -> ${movie.name}`);
+        const matching = await resolveMatchingSeason(movie, requestedSeason);
+        if (!matching) {
+          const aliasMatch = await resolveKnownSeriesSeason(parts[0], requestedSeason);
+          if (!aliasMatch) return { streams: [] };
+          response = aliasMatch;
+        } else {
+          response = matching;
+        }
+      }
     }
 
     const servers =
