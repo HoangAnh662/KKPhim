@@ -146,23 +146,38 @@ async function resolveImdbFallback(imdbId, type) {
 
   // If Cinemeta did not expose TMDB ID, try KKPhim search as a final fallback.
   if (!title) return null;
-  const search = await axios.get(`${API}/v1/api/tim-kiem`, {
-    params: { keyword: title, year: year || undefined, page: 1 },
-    timeout: 8000
-  });
-  const items = search.data?.data?.items || search.data?.items || [];
   const wanted = normalizeText(title);
-  const candidate = items.find(item =>
-    Number(item.year || 0) === year &&
-    [item.name, item.origin_name].filter(Boolean).some(name => normalizeText(name) === wanted)
-  );
-  if (candidate?.slug) {
-    const detail = await axios.get(
-      `${API}/phim/${encodeURIComponent(candidate.slug)}`,
-      { timeout: 8000 }
-    );
-    console.log(`KKPhim title fallback: ${imdbId} -> ${candidate.slug}`);
-    return detail;
+  const searchVariants = [...new Set([title, normalizeText(title)])];
+  for (const keyword of searchVariants) {
+    try {
+      const search = await axios.get(`${API}/v1/api/tim-kiem`, {
+        params: { keyword, page: 1 }, timeout: 8000
+      });
+      const items = search.data?.data?.items || search.data?.items || [];
+      const candidates = items.filter(item => {
+        const itemYear = Number(item.year || 0);
+        const yearOk = !year || itemYear === year;
+        const nameOk = [item.name, item.origin_name]
+          .filter(Boolean)
+          .some(name => normalizeText(name) === wanted);
+        return item.slug && yearOk && nameOk;
+      });
+      for (const candidate of candidates.slice(0, 3)) {
+        const detail = await axios.get(
+          `${API}/phim/${encodeURIComponent(candidate.slug)}`,
+          { timeout: 8000 }
+        );
+        if (detail.data?.episodes?.length &&
+            (!year || Number(detail.data?.movie?.year) === year) &&
+            [detail.data?.movie?.name, detail.data?.movie?.origin_name]
+              .some(name => normalizeText(name) === wanted)) {
+          console.log(`KKPhim normalized title match: ${imdbId} -> ${candidate.slug}`);
+          return detail;
+        }
+      }
+    } catch (error) {
+      console.log(`KKPhim title lookup failed: ${error.message}`);
+    }
   }
 
   // Final fallback: resolve localized/alternative titles from Wikidata by IMDb ID.
