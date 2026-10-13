@@ -507,7 +507,7 @@ builder.defineStreamHandler(async ({ type, id }) => {
       const seasonText = [movie.name, movie.origin_name, movie.slug]
         .filter(Boolean).join(" ");
       const seasonMatch = seasonText.match(
-        /(?:phần|phan|season|ss)\\s*[-_. ]*([0-9]{1,2})\\b/i
+        /(?:phần|phan|season|ss)\s*[-_. ]*([0-9]{1,2})\b/i
       );
       if (seasonMatch && Number(seasonMatch[1]) !== requestedSeason) {
         console.log(`KKPhim season mismatch: ${id} -> ${movie.name}`);
