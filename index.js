@@ -217,6 +217,50 @@ async function resolveImdbFallback(imdbId, type) {
   return null;
 }
 
+
+function extractSeason(movie) {
+  const value = [movie?.name, movie?.origin_name, movie?.slug].filter(Boolean).join(" ");
+  const match = value.match(/(?:phần|phan|season|ss)\s*[-_. ]*([0-9]{1,2})\b/i);
+  return match ? Number(match[1]) : null;
+}
+
+function baseSeriesTitle(value) {
+  return normalizeText(String(value || "")
+    .replace(/\s*[\(\[]?\s*(?:phần|phan|season|ss)\s*[-_. ]*\d{1,2}\s*[\)\]]?/gi, " "));
+}
+
+async function resolveMatchingSeason(sourceMovie, season) {
+  if (!Number.isInteger(season) || season < 1 || season > 99) return null;
+  const names = [sourceMovie?.origin_name, sourceMovie?.name]
+    .filter(Boolean).map(baseSeriesTitle).filter(Boolean);
+  if (!names.length) return null;
+  const queries = [...new Set([sourceMovie?.origin_name, sourceMovie?.name]
+    .filter(Boolean).map(v => String(v).replace(/\s*[\(\[]?\s*(?:phần|phan|season|ss)\s*[-_. ]*\d{1,2}\s*[\)\]]?/gi, "").trim()))];
+  for (const keyword of queries.slice(0, 2)) {
+    try {
+      const result = await axios.get(`\${API}/v1/api/tim-kiem`, {
+        params: { keyword, page: 1 }, timeout: 6000
+      });
+      const items = result.data?.data?.items || result.data?.items || [];
+      const matches = items.filter(item =>
+        extractSeason(item) === season &&
+        [item.name, item.origin_name].some(v => names.includes(baseSeriesTitle(v))) &&
+        item.slug
+      );
+      for (const item of matches.slice(0, 3)) {
+        const detail = await axios.get(`\${API}/phim/\${encodeURIComponent(item.slug)}`, { timeout: 6000 });
+        if (extractSeason(detail.data?.movie) === season &&
+            Array.isArray(detail.data?.episodes) && detail.data.episodes.length) {
+          return detail;
+        }
+      }
+    } catch (error) {
+      console.log(`KKPhim season lookup failed: \${error.message}`);
+    }
+  }
+  return null;
+}
+
 const builder = new addonBuilder(manifest);
 
 
@@ -511,7 +555,9 @@ builder.defineStreamHandler(async ({ type, id }) => {
       );
       if (seasonMatch && Number(seasonMatch[1]) !== requestedSeason) {
         console.log(`KKPhim season mismatch: ${id} -> ${movie.name}`);
-        return { streams: [] };
+        const matching = await resolveMatchingSeason(movie, requestedSeason);
+        if (!matching) return { streams: [] };
+        response = matching;
       }
     }
 
