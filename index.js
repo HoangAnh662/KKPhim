@@ -70,6 +70,12 @@ function normalizeType(movie, fallbackType = "movie") {
 }
 
 
+function yearMatches(candidateYear, requestedYear) {
+  const a = Number(candidateYear || 0);
+  const b = Number(requestedYear || 0);
+  return !a || !b || Math.abs(a - b) <= 1;
+}
+
 function normalizeText(value = "") {
   return String(value)
     .normalize("NFD")
@@ -156,7 +162,7 @@ async function resolveImdbFallback(imdbId, type) {
       const items = search.data?.data?.items || search.data?.items || [];
       const candidates = items.filter(item => {
         const itemYear = Number(item.year || 0);
-        const yearOk = !year || itemYear === year;
+        const yearOk = yearMatches(itemYear, year);
         const nameOk = [item.name, item.origin_name]
           .filter(Boolean)
           .some(name => normalizeText(name) === wanted);
@@ -168,7 +174,7 @@ async function resolveImdbFallback(imdbId, type) {
           { timeout: 8000 }
         );
         if (detail.data?.episodes?.length &&
-            (!year || Number(detail.data?.movie?.year) === year) &&
+            yearMatches(detail.data?.movie?.year, year) &&
             [detail.data?.movie?.name, detail.data?.movie?.origin_name]
               .some(name => normalizeText(name) === wanted)) {
           console.log(`KKPhim normalized title match: ${imdbId} -> ${candidate.slug}`);
