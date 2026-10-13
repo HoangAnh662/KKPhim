@@ -562,7 +562,7 @@ builder.defineStreamHandler(async ({ type, id }) => {
 
     // TMDB catalog: resolve directly by TMDB ID, without title guessing.
     else if (id.startsWith("tmdb:")) {
-      const match = id.match(/^tmdb:(\\d+)(?::(\\d+):(\\d+))?$/);
+      const match = id.match(/^tmdb:(\d+)(?::(\d+):(\d+))?$/);
       if (!match) return { streams: [] };
       const [, tmdbId, season, episode] = match;
       if (type === "series") {
