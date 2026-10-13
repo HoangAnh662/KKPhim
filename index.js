@@ -229,6 +229,48 @@ function baseSeriesTitle(value) {
     .replace(/\s*[\(\[]?\s*(?:phần|phan|season|ss)\s*[-_. ]*\d{1,2}\s*[\)\]]?/gi, " "));
 }
 
+
+const IMDB_SERIES_ALIASES = {
+  tt0903747: ["Breaking Bad", "Tập Làm Người Xấu"],
+  tt0944947: ["Game of Thrones", "Trò Chơi Vương Quyền"]
+};
+
+async function resolveKnownSeriesSeason(imdbId, season) {
+  const aliases = IMDB_SERIES_ALIASES[imdbId];
+  if (!aliases) return null;
+  const normalizedAliases = aliases.map(baseSeriesTitle);
+  for (const keyword of aliases) {
+    try {
+      const result = await axios.get(`${API}/v1/api/tim-kiem`, {
+        params: { keyword, page: 1 }, timeout: 6000
+      });
+      const items = result.data?.data?.items || result.data?.items || [];
+      const matches = items.filter(item =>
+        item.slug &&
+        extractSeason(item) === season &&
+        [item.name, item.origin_name].some(v =>
+          normalizedAliases.includes(baseSeriesTitle(v))
+        )
+      );
+      for (const item of matches.slice(0, 3)) {
+        const detail = await axios.get(
+          `${API}/phim/${encodeURIComponent(item.slug)}`,
+          { timeout: 6000 }
+        );
+        if (extractSeason(detail.data?.movie) === season &&
+            Array.isArray(detail.data?.episodes) &&
+            detail.data.episodes.length) {
+          console.log(`KKPhim alias season match: ${imdbId} S${season} -> ${item.slug}`);
+          return detail;
+        }
+      }
+    } catch (error) {
+      console.log(`KKPhim alias lookup failed: ${error.message}`);
+    }
+  }
+  return null;
+}
+
 async function resolveMatchingSeason(sourceMovie, season) {
   if (!Number.isInteger(season) || season < 1 || season > 99) return null;
   const names = [sourceMovie?.origin_name, sourceMovie?.name]
@@ -525,6 +567,9 @@ builder.defineStreamHandler(async ({ type, id }) => {
 
         response = await resolveImdbFallback(imdbId, type);
 
+        if (!response && type === "series") {
+          response = await resolveKnownSeriesSeason(imdbId, Number(parts[1]));
+        }
         if (!response) {
           console.log(`No KKPhim match for IMDb: ${imdbId}`);
           return { streams: [] };
@@ -547,6 +592,10 @@ builder.defineStreamHandler(async ({ type, id }) => {
           !Number.isInteger(requestedEpisode) || requestedEpisode < 1) {
         return { streams: [] };
       }
+      if (!response.data?.episodes?.length) {
+        const aliasMatch = await resolveKnownSeriesSeason(parts[0], requestedSeason);
+        if (aliasMatch) response = aliasMatch;
+      }
       const movie = response.data?.movie || {};
       const seasonText = [movie.name, movie.origin_name, movie.slug]
         .filter(Boolean).join(" ");
@@ -556,8 +605,13 @@ builder.defineStreamHandler(async ({ type, id }) => {
       if (seasonMatch && Number(seasonMatch[1]) !== requestedSeason) {
         console.log(`KKPhim season mismatch: ${id} -> ${movie.name}`);
         const matching = await resolveMatchingSeason(movie, requestedSeason);
-        if (!matching) return { streams: [] };
-        response = matching;
+        if (!matching) {
+          const aliasMatch = await resolveKnownSeriesSeason(parts[0], requestedSeason);
+          if (!aliasMatch) return { streams: [] };
+          response = aliasMatch;
+        } else {
+          response = matching;
+        }
       }
     }
 
