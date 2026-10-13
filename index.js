@@ -238,7 +238,7 @@ async function resolveMatchingSeason(sourceMovie, season) {
     .filter(Boolean).map(v => String(v).replace(/\s*[\(\[]?\s*(?:phần|phan|season|ss)\s*[-_. ]*\d{1,2}\s*[\)\]]?/gi, "").trim()))];
   for (const keyword of queries.slice(0, 2)) {
     try {
-      const result = await axios.get(`\${API}/v1/api/tim-kiem`, {
+      const result = await axios.get(`${API}/v1/api/tim-kiem`, {
         params: { keyword, page: 1 }, timeout: 6000
       });
       const items = result.data?.data?.items || result.data?.items || [];
@@ -248,14 +248,14 @@ async function resolveMatchingSeason(sourceMovie, season) {
         item.slug
       );
       for (const item of matches.slice(0, 3)) {
-        const detail = await axios.get(`\${API}/phim/\${encodeURIComponent(item.slug)}`, { timeout: 6000 });
+        const detail = await axios.get(`${API}/phim/${encodeURIComponent(item.slug)}`, { timeout: 6000 });
         if (extractSeason(detail.data?.movie) === season &&
             Array.isArray(detail.data?.episodes) && detail.data.episodes.length) {
           return detail;
         }
       }
     } catch (error) {
-      console.log(`KKPhim season lookup failed: \${error.message}`);
+      console.log(`KKPhim season lookup failed: ${error.message}`);
     }
   }
   return null;
