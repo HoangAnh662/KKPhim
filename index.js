@@ -81,12 +81,17 @@ function normalizeText(value = "") {
 
 async function resolveImdbFallback(imdbId, type) {
   const metaType = type === "series" ? "series" : "movie";
-  const cinemeta = await axios.get(
-    `https://v3-cinemeta.strem.io/meta/${metaType}/${encodeURIComponent(imdbId)}.json`,
-    { timeout: 8000 }
-  );
+  let info = {};
+  try {
+    const cinemeta = await axios.get(
+      `https://v3-cinemeta.strem.io/meta/${metaType}/${encodeURIComponent(imdbId)}.json`,
+      { timeout: 8000 }
+    );
+    info = cinemeta.data?.meta || {};
+  } catch (error) {
+    console.log(`Cinemeta unavailable for ${imdbId}: ${error.message}`);
+  }
 
-  const info = cinemeta.data?.meta || {};
   const title = info.name || "";
   const year = Number(
     info.year ||
@@ -107,6 +112,25 @@ async function resolveImdbFallback(imdbId, type) {
   }
 
   // Yastream's KKPhim provider does this first: /tmdb/{movie|tv}/{tmdbId}.
+  // Resolve IMDb -> TMDB through Wikidata if Cinemeta has no TMDB ID.
+  if (!tmdbId) {
+    try {
+      const property = type === "series" ? "P4983" : "P4947";
+      const query = `SELECT ?tmdb WHERE {
+        ?item wdt:P345 "${imdbId}"; wdt:${property} ?tmdb.
+      } LIMIT 1`;
+      const result = await axios.get("https://query.wikidata.org/sparql", {
+        params: { query, format: "json" },
+        headers: { "User-Agent": "KKPhim-Stremio-Addon/1.2.4" },
+        timeout: 6000
+      });
+      const value = String(result.data?.results?.bindings?.[0]?.tmdb?.value || "");
+      if (/^[0-9]+$/.test(value)) tmdbId = value;
+    } catch (error) {
+      console.log(`IMDb TMDB lookup failed: ${error.message}`);
+    }
+  }
+
   if (tmdbId) {
     try {
       const byTmdb = await axios.get(
