@@ -393,7 +393,7 @@ if (id?.startsWith("genre-")) {
 
       const metas = items.map(movie => ({
         id: `kkphim:${movie.slug}`,
-        type: normalizeType(movie, type),
+        type: filterSearchResult.actualType(movie) || normalizeType(movie, "movie"),
         name: movie.name,
         poster: normalizeImage(movie.poster_url),
         description: movie.origin_name || ""
