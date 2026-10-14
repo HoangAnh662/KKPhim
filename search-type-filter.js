@@ -1,7 +1,7 @@
 // Search catalog type guard for Nuvio/Stremio.
 // Loaded before index.js so search results are verified against KKPhim detail data.
 // Known types are kept only in the correct catalog. Unknown/failed checks are kept
-// in the requested catalog so search never loses a KKPhim result.
+// using the result type when detail verification is unavailable.
 const sdk = require("stremio-addon-sdk");
 const axios = require("axios");
 
@@ -26,7 +26,11 @@ sdk.addonBuilder.prototype.defineCatalogHandler = function (handler) {
 
     const checked = await Promise.all(
       result.metas.map(async meta => {
-        const fallback = { ...meta, type: args.type };
+        // Preserve a known result type if the detail API is unavailable.
+        // Never relabel a known movie as series (or the reverse).
+        const fallback = meta.type === "movie" || meta.type === "series"
+          ? (meta.type === args.type ? meta : null)
+          : { ...meta, type: args.type };
         const slug = String(meta?.id || "").startsWith("kkphim:")
           ? String(meta.id).slice("kkphim:".length).split(":")[0]
           : "";
@@ -47,11 +51,11 @@ sdk.addonBuilder.prototype.defineCatalogHandler = function (handler) {
             return { ...meta, type };
           }
 
-          // Unknown type: keep it instead of risking a missing search result.
+          // Unknown detail type: preserve the search result type.
           return fallback;
         } catch (error) {
           console.log(`Search type check failed: ${slug} - ${error.message}`);
-          // Temporary API/detail failure must not make the movie disappear.
+          // API failure must not move a known result into the wrong catalog.
           return fallback;
         }
       })
