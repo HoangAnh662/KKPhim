@@ -71,6 +71,35 @@ function normalizeType(movie, fallbackType = "movie") {
 }
 
 
+function uniqueServerEpisodes(servers) {
+  if (!Array.isArray(servers)) return [];
+  return servers.map(server => {
+    const seen = new Set();
+    const serverData = Array.isArray(server?.server_data) ? server.server_data : [];
+    return {
+      ...server,
+      server_data: serverData.filter(ep => {
+        const label = String(ep?.name || ep?.slug || "")
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .trim()
+          .toLowerCase();
+        // Keep combined episodes distinct: "01-02" is not episode "01".
+        const match = label.match(/^(?:(?:tap|episode|ep)\s*)?(\d+)(?:\s*[-–—]\s*(\d+))?$/);
+        const key = match
+          ? "number:" + Number(match[1]) + (match[2] ? "-" + Number(match[2]) : "")
+          : (label ? "label:" + label : null);
+        // Unnamed entries cannot safely be identified as duplicates.
+        if (key === null) return true;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+    };
+  });
+}
+
+
 function yearMatches(candidateYear, requestedYear) {
   const a = Number(candidateYear || 0);
   const b = Number(requestedYear || 0);
@@ -496,7 +525,7 @@ builder.defineMetaHandler(async ({ type, id }) => {
 
       const episodes = [];
 
-      const servers = response.data.episodes || [];
+      const servers = uniqueServerEpisodes(response.data.episodes);
 
       if (servers.length > 0) {
 
@@ -672,8 +701,9 @@ builder.defineStreamHandler(async ({ type, id }) => {
       }
     }
 
-    const servers =
-      response.data.episodes || [];
+    const servers = type === "series"
+      ? uniqueServerEpisodes(response.data.episodes)
+      : response.data.episodes || [];
 
     if (!servers.length) {
       return { streams: [] };
