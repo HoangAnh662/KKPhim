@@ -1,4 +1,4 @@
-require("./search-type-filter");
+const filterSearchResult = require("./search-type-filter");
 const { addonBuilder, getRouter } = require("stremio-addon-sdk");
 const express = require("express");
 const axios = require("axios");
@@ -399,7 +399,7 @@ if (id?.startsWith("genre-")) {
         description: movie.origin_name || ""
       }));
 
-      return { metas };
+      return filterSearchResult({ type, extra }, { metas });
     }
 
     // =========================
