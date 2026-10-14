@@ -2,11 +2,9 @@
 // Loaded before index.js so search results are verified against KKPhim detail data.
 // Known types are kept only in the correct catalog. Unknown/failed checks are kept
 // using the result type when detail verification is unavailable.
-const sdk = require("stremio-addon-sdk");
 const axios = require("axios");
 
 const API = "https://phimapi.com";
-const originalDefineCatalogHandler = sdk.addonBuilder.prototype.defineCatalogHandler;
 
 function actualType(movie) {
   const raw = String(movie?.type || movie?.category || "").toLowerCase();
@@ -15,9 +13,7 @@ function actualType(movie) {
   return null;
 }
 
-sdk.addonBuilder.prototype.defineCatalogHandler = function (handler) {
-  return originalDefineCatalogHandler.call(this, async (args) => {
-    const result = await handler(args);
+module.exports = async function filterSearchResult(args, result) {
     const search = args?.extra?.search?.trim();
 
     if (!search || !Array.isArray(result?.metas) || !result.metas.length) {
@@ -62,5 +58,4 @@ sdk.addonBuilder.prototype.defineCatalogHandler = function (handler) {
     );
 
     return { ...result, metas: checked.filter(Boolean) };
-  });
 };
