@@ -1,3 +1,4 @@
+require("./search-type-filter");
 const { addonBuilder, getRouter } = require("stremio-addon-sdk");
 const express = require("express");
 const axios = require("axios");
