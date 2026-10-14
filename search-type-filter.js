@@ -6,10 +6,21 @@ const axios = require("axios");
 
 const API = "https://phimapi.com";
 
-function actualType(movie) {
+function actualType(movie, episodes = []) {
   const raw = String(movie?.type || movie?.category || "").toLowerCase();
   if (["series", "tvshows", "phim-bo"].includes(raw)) return "series";
   if (["single", "movie", "phim-le"].includes(raw)) return "movie";
+  if (["hoathinh", "hoat-hinh", "anime", "animation"].includes(raw)) {
+    const tmdbType = String(movie?.tmdb?.type || "").toLowerCase();
+    if (tmdbType === "tv") return "series";
+    if (tmdbType === "movie") return "movie";
+    const total = Number(String(movie?.episode_total || "").match(/^\s*(\d+)/)?.[1] || 0);
+    const maxEpisodes = Math.max(0, ...episodes.map(server =>
+      Array.isArray(server?.server_data) ? server.server_data.length : 0
+    ));
+    if (total > 1 || maxEpisodes > 1) return "series";
+    if (total === 1 || /^full$/i.test(String(movie?.episode_current || "").trim())) return "movie";
+  }
   return null;
 }
 
@@ -39,7 +50,7 @@ module.exports = async function filterSearchResult(args, result) {
             timeout: 6000
           });
           const movie = detail.data?.movie;
-          const type = actualType(movie);
+          const type = actualType(movie, detail.data?.episodes || []);
 
           // If KKPhim clearly identifies the type, show it only in the correct row.
           if (type) {
@@ -59,3 +70,5 @@ module.exports = async function filterSearchResult(args, result) {
 
     return { ...result, metas: checked.filter(Boolean) };
 };
+
+module.exports.actualType = actualType;
