@@ -125,11 +125,11 @@ async function getCanonicalImdbMetadata(imdbId, type) {
     );
     const info = response.data?.meta || {};
     const title = info.name || "";
-    const year = Number(info.year || String(info.releaseInfo || "").match(/\\d{4}/)?.[0] || 0);
+    const year = Number(info.year || String(info.releaseInfo || "").match(/\d{4}/)?.[0] || 0);
     let tmdbId = null;
     for (const link of Array.isArray(info.links) ? info.links : []) {
       const raw = String(link?.url || link?.id || link?.name || "");
-      const match = raw.match(/tmdb[:/](\\d+)/i);
+      const match = raw.match(/tmdb[:/](\d+)/i);
       if (match) { tmdbId = match[1]; break; }
     }
     return { title, year, tmdbId };
@@ -144,8 +144,8 @@ function isMatchingImdbMovie(response, imdbId, canonical) {
   if (!movie) return false;
   const imdbValues = [movie.imdb_id, movie.imdb, movie.imdbId, movie.tmdb?.imdb_id, movie.tmdb?.imdb]
     .filter(Boolean).map(String);
-  const explicitImdb = imdbValues.find(value => /tt\\d+/i.test(value));
-  if (explicitImdb && explicitImdb.match(/tt\\d+/i)?.[0].toLowerCase() !== imdbId.toLowerCase()) return false;
+  const explicitImdb = imdbValues.find(value => /tt\d+/i.test(value));
+  if (explicitImdb && explicitImdb.match(/tt\d+/i)?.[0].toLowerCase() !== imdbId.toLowerCase()) return false;
 
   const candidateTmdb = String(movie.tmdb?.id || movie.tmdb_id || movie.tmdbId || "");
   if (canonical?.tmdbId && candidateTmdb && candidateTmdb !== String(canonical.tmdbId)) return false;
