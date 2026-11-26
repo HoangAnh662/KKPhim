@@ -16,7 +16,21 @@ const GENRES = {
   "gia-dinh": "Gia đình",
   "tai-lieu": "Tài liệu",
   "than-thoai": "Thần thoại",
-  "phim-18": "Phim 18+"
+  "phim-18": "Phim 18+",
+  "bi-an": "Bí ẩn",
+  "chinh-kich": "Chính kịch",
+  "co-trang": "Cổ trang",
+  "hoc-duong": "Học đường",
+  "khoa-hoc": "Khoa học",
+  "kinh-dien": "Kinh điển",
+  "lich-su": "Lịch sử",
+  "mien-tay": "Miền Tây",
+  "phim-ngan": "Phim ngắn",
+  "the-thao": "Thể thao",
+  "tre-em": "Trẻ em",
+  "tam-ly": "Tâm lý",
+  "vo-thuat": "Võ thuật",
+  "am-nhac": "Âm nhạc"
 };
 const manifest = {
   id: "org.kkphim.stremio",
@@ -1167,6 +1181,76 @@ h1 {
       <label class="option">
         <input type="checkbox" value="phim-18">
         <span>🔞 Phim 18+</span>
+      </label>
+
+      <label class="option">
+        <input type="checkbox" value="bi-an">
+        <span>🕵️ Bí ẩn</span>
+      </label>
+
+      <label class="option">
+        <input type="checkbox" value="chinh-kich">
+        <span>🎭 Chính kịch</span>
+      </label>
+
+      <label class="option">
+        <input type="checkbox" value="co-trang">
+        <span>🏯 Cổ trang</span>
+      </label>
+
+      <label class="option">
+        <input type="checkbox" value="hoc-duong">
+        <span>🎓 Học đường</span>
+      </label>
+
+      <label class="option">
+        <input type="checkbox" value="khoa-hoc">
+        <span>🔬 Khoa học</span>
+      </label>
+
+      <label class="option">
+        <input type="checkbox" value="kinh-dien">
+        <span>🎞️ Kinh điển</span>
+      </label>
+
+      <label class="option">
+        <input type="checkbox" value="lich-su">
+        <span>📜 Lịch sử</span>
+      </label>
+
+      <label class="option">
+        <input type="checkbox" value="mien-tay">
+        <span>🤠 Miền Tây</span>
+      </label>
+
+      <label class="option">
+        <input type="checkbox" value="phim-ngan">
+        <span>⏱️ Phim ngắn</span>
+      </label>
+
+      <label class="option">
+        <input type="checkbox" value="the-thao">
+        <span>⚽ Thể thao</span>
+      </label>
+
+      <label class="option">
+        <input type="checkbox" value="tre-em">
+        <span>🧸 Trẻ em</span>
+      </label>
+
+      <label class="option">
+        <input type="checkbox" value="tam-ly">
+        <span>🧠 Tâm lý</span>
+      </label>
+
+      <label class="option">
+        <input type="checkbox" value="vo-thuat">
+        <span>🥋 Võ thuật</span>
+      </label>
+
+      <label class="option">
+        <input type="checkbox" value="am-nhac">
+        <span>🎵 Âm nhạc</span>
       </label>
 
     </div>
