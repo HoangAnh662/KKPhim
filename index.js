@@ -115,6 +115,52 @@ function normalizeText(value = "") {
     .trim();
 }
 
+
+async function getCanonicalImdbMetadata(imdbId, type) {
+  try {
+    const metaType = type === "series" ? "series" : "movie";
+    const response = await axios.get(
+      `https://v3-cinemeta.strem.io/meta/${metaType}/${encodeURIComponent(imdbId)}.json`,
+      { timeout: 8000 }
+    );
+    const info = response.data?.meta || {};
+    const title = info.name || "";
+    const year = Number(info.year || String(info.releaseInfo || "").match(/\\d{4}/)?.[0] || 0);
+    let tmdbId = null;
+    for (const link of Array.isArray(info.links) ? info.links : []) {
+      const raw = String(link?.url || link?.id || link?.name || "");
+      const match = raw.match(/tmdb[:/](\\d+)/i);
+      if (match) { tmdbId = match[1]; break; }
+    }
+    return { title, year, tmdbId };
+  } catch (error) {
+    console.log(`Cinemeta metadata unavailable for ${imdbId}: ${error.message}`);
+    return null;
+  }
+}
+
+function isMatchingImdbMovie(response, imdbId, canonical) {
+  const movie = response?.data?.movie;
+  if (!movie) return false;
+  const imdbValues = [movie.imdb_id, movie.imdb, movie.imdbId, movie.tmdb?.imdb_id, movie.tmdb?.imdb]
+    .filter(Boolean).map(String);
+  const explicitImdb = imdbValues.find(value => /tt\\d+/i.test(value));
+  if (explicitImdb && explicitImdb.match(/tt\\d+/i)?.[0].toLowerCase() !== imdbId.toLowerCase()) return false;
+
+  const candidateTmdb = String(movie.tmdb?.id || movie.tmdb_id || movie.tmdbId || "");
+  if (canonical?.tmdbId && candidateTmdb && candidateTmdb !== String(canonical.tmdbId)) return false;
+  if (canonical?.tmdbId && candidateTmdb === String(canonical.tmdbId)) return true;
+
+  if (canonical?.title) {
+    const wanted = normalizeText(canonical.title);
+    const names = [movie.name, movie.origin_name].filter(Boolean);
+    const nameMatches = names.some(name => normalizeText(name) === wanted);
+    const yearMatchesCanonical = !canonical.year || !movie.year || Number(movie.year) === Number(canonical.year);
+    return nameMatches && yearMatchesCanonical;
+  }
+  return true;
+}
+
 async function resolveImdbFallback(imdbId, type) {
   const metaType = type === "series" ? "series" : "movie";
   let info = {};
@@ -627,32 +673,20 @@ builder.defineStreamHandler(async ({ type, id }) => {
     else if (id.startsWith("tt")) {
       const parts = id.split(":");
       const imdbId = parts[0];
-
-      // Nếu là series, Stremio thường gửi:
-      // tt1234567:season:episode
       if (parts.length >= 3) {
         const episodeNumber = Number(parts[2]);
-
-        if (!isNaN(episodeNumber) && episodeNumber > 0) {
-          episodeIndex = episodeNumber - 1;
-        }
+        if (!isNaN(episodeNumber) && episodeNumber > 0) episodeIndex = episodeNumber - 1;
       }
 
+      const canonical = type === "movie" ? await getCanonicalImdbMetadata(imdbId, type) : null;
       try {
         response = await axios.get(
           `${API}/imdb/title/${encodeURIComponent(imdbId)}`,
-          {
-            params: {
-              type: type === "series" ? "tv" : "movie"
-            },
-            timeout: 8000
-          }
+          { params: { type: type === "series" ? "tv" : "movie" }, timeout: 8000 }
         );
       } catch (directError) {
         if (directError.response?.status !== 404) throw directError;
-
         response = await resolveImdbFallback(imdbId, type);
-
         if (!response && type === "series") {
           response = await resolveKnownSeriesSeason(imdbId, Number(parts[1]));
         }
@@ -661,6 +695,18 @@ builder.defineStreamHandler(async ({ type, id }) => {
           return { streams: [] };
         }
       }
+
+      // KKPhim may return HTTP 200 with metadata for a different movie.
+      // Verify identity before using any of its streams.
+      if (type === "movie" && response && !isMatchingImdbMovie(response, imdbId, canonical)) {
+        console.log(`KKPhim IMDb mismatch: ${imdbId} -> ${response.data?.movie?.name || "unknown"}; retrying fallback`);
+        response = await resolveImdbFallback(imdbId, type);
+        if (!isMatchingImdbMovie(response, imdbId, canonical)) {
+          console.log(`No verified KKPhim movie match for IMDb: ${imdbId}`);
+          return { streams: [] };
+        }
+      }
+      if (!response) return { streams: [] };
     }
 
     else {
