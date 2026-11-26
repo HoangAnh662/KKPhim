@@ -15,7 +15,8 @@ const GENRES = {
   "hoat-hinh": "Hoạt hình",
   "gia-dinh": "Gia đình",
   "tai-lieu": "Tài liệu",
-  "than-thoai": "Thần thoại"
+  "than-thoai": "Thần thoại",
+  "phim-18": "Phim 18+"
 };
 const manifest = {
   id: "org.kkphim.stremio",
@@ -1161,6 +1162,11 @@ h1 {
       <label class="option">
         <input type="checkbox" value="than-thoai">
         <span>🔱 Thần thoại</span>
+      </label>
+
+      <label class="option">
+        <input type="checkbox" value="phim-18">
+        <span>🔞 Phim 18+</span>
       </label>
 
     </div>
