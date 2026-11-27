@@ -1,0 +1,31 @@
+name: KKPhim smoke test
+
+on:
+  push:
+    branches:
+      - perf/cache-timeout-phase5
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Check JavaScript syntax
+        run: |
+          node --check index.js
+          node --check search-type-filter.js
+          node --check scripts/cache-test.js
+          node --check scripts/smoke-test.js
+      - name: Run cache and startup tests
+        run: npm test

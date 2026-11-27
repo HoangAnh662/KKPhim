@@ -2,6 +2,79 @@ const filterSearchResult = require("./search-type-filter");
 const { addonBuilder, getRouter } = require("stremio-addon-sdk");
 const express = require("express");
 const axios = require("axios");
+
+// Performance: bounded in-memory cache for stable GET responses only.
+// Stream/detail endpoints are deliberately excluded because source URLs may expire.
+axios.defaults.timeout = 8000;
+const responseCache = new Map();
+const CACHE_MAX_ENTRIES = 300;
+const CACHE_TTL = {
+  search: 90 * 1000,
+  catalog: 5 * 60 * 1000,
+  cinemeta: 6 * 60 * 60 * 1000
+};
+
+function getCachePolicy(config) {
+  if (String(config.method || "get").toLowerCase() !== "get") return null;
+  const url = String(config.url || "");
+  if (/v3-cinemeta\.strem\.io\/meta\//i.test(url)) return CACHE_TTL.cinemeta;
+  if (/phimapi\.com\/v1\/api\/tim-kiem/i.test(url)) return CACHE_TTL.search;
+  if (/phimapi\.com\/v1\/api\/(?:danh-sach|the-loai)\//i.test(url)) return CACHE_TTL.catalog;
+  return null;
+}
+
+function stableParams(params = {}) {
+  return Object.keys(params)
+    .sort()
+    .map(key => key + "=" + String(params[key] ?? ""))
+    .join("&");
+}
+
+function cloneData(data) {
+  if (data === undefined) return data;
+  try { return JSON.parse(JSON.stringify(data)); }
+  catch (_) { return data; }
+}
+
+const baseAxiosAdapter = axios.getAdapter(axios.defaults.adapter);
+axios.defaults.adapter = async config => {
+  const ttl = getCachePolicy(config);
+  const cacheKey = ttl
+    ? String(config.url || "") + "?" + stableParams(config.params)
+    : null;
+
+  if (cacheKey) {
+    const cached = responseCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return {
+        data: cloneData(cached.data),
+        status: cached.status,
+        statusText: cached.statusText,
+        headers: cached.headers,
+        config,
+        request: {}
+      };
+    }
+    if (cached) responseCache.delete(cacheKey);
+  }
+
+  const response = await baseAxiosAdapter(config);
+  if (cacheKey && response.status >= 200 && response.status < 300) {
+    while (responseCache.size >= CACHE_MAX_ENTRIES) {
+      const oldestKey = responseCache.keys().next().value;
+      if (oldestKey === undefined) break;
+      responseCache.delete(oldestKey);
+    }
+    responseCache.set(cacheKey, {
+      data: cloneData(response.data),
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
+      expiresAt: Date.now() + ttl
+    });
+  }
+  return response;
+};
 const API = "https://phimapi.com";
 const GENRES = {
   "hanh-dong": "Hành động",
